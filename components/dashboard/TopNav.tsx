@@ -1,0 +1,55 @@
+'use client';
+
+import React from 'react';
+import Image from 'next/image';
+import { Search, Bell, HelpCircle } from 'lucide-react';
+import { User } from '@/lib/types';
+
+interface TopNavProps {
+  user: User | null;
+  title: string;
+}
+
+export default function TopNav({ user, title }: TopNavProps) {
+  return (
+    <header className="h-16 border-b border-slate-200 bg-white/50 backdrop-blur-md flex justify-between items-center px-8 sticky top-0 z-30">
+      <div className="flex items-center gap-8 flex-1">
+        <h2 className="text-xl font-extrabold text-slate-800 tracking-tight">{title}</h2>
+        <div className="relative max-w-md w-full hidden md:block">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
+          <input 
+            type="text" 
+            placeholder="Search enterprise reports..." 
+            className="w-full bg-slate-50/50 border border-slate-200 rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/5 focus:border-primary transition-all placeholder:text-slate-300"
+          />
+        </div>
+      </div>
+
+      <div className="flex items-center gap-4">
+        <button className="p-2 text-slate-500 hover:bg-slate-50 rounded-full transition-colors relative">
+          <Bell size={20} />
+          <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full border-2 border-white"></span>
+        </button>
+        <button className="p-2 text-slate-500 hover:bg-slate-50 rounded-full transition-colors">
+          <HelpCircle size={20} />
+        </button>
+        <div className="h-8 w-[1px] bg-slate-200 mx-2"></div>
+        <div className="flex items-center gap-3">
+          <div className="text-right hidden sm:block">
+            <p className="text-sm font-semibold text-slate-800 leading-none">{user?.name}</p>
+            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1">{user?.role}</p>
+          </div>
+          <div className="w-10 h-10 rounded-full bg-blue-100 border-2 border-white shadow-sm flex items-center justify-center overflow-hidden relative">
+            <Image 
+              src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.name}`} 
+              alt="Avatar" 
+              fill
+              className="object-cover"
+              referrerPolicy="no-referrer"
+            />
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+}

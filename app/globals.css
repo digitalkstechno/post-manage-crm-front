@@ -1,0 +1,16 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #8C1919;
+  --color-primary-container: #a32424;
+  
+  --font-sans: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  body {
+    @apply selection:bg-rose-100 selection:text-primary min-h-screen bg-slate-50;
+    background-image: radial-gradient(at 0% 0%, rgba(140, 25, 25, 0.05) 0px, transparent 50%), 
+                      radial-gradient(at 100% 0%, rgba(140, 25, 25, 0.05) 0px, transparent 50%);
+  }
+}
