@@ -5,11 +5,10 @@ import DirectoryContent from '@/components/dashboard/DirectoryContent';
 import { useApp } from '@/lib/context';
 
 export default function DirectoryPage() {
-
-   const { role, submissions, addSubmission, updateStatus, searchQuery } = useApp();
+  const { submissions, searchQuery } = useApp();
   return (
     <DashboardLayoutWrapper>
-      <DirectoryContent searchQuery={searchQuery} />
+      <DirectoryContent searchQuery={searchQuery} submissions={submissions} />
     </DashboardLayoutWrapper>
   );
 }

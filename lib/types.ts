@@ -9,7 +9,6 @@ export interface Submission {
   title: string;
   description: string;
   link: string;
-  category?: string;
   status: SubmissionStatus;
   createdAt: string;
   adminComment?: string;

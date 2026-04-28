@@ -1,22 +1,25 @@
 'use client';
 
-import React from 'react';
-import DashboardContent from '@/components/dashboard/DashboardContent';
-import DashboardLayoutWrapper from '@/components/dashboard/DashboardLayoutWrapper';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useApp } from '@/lib/context';
+import DashboardLayoutWrapper from '@/components/dashboard/DashboardLayoutWrapper';
 
 export default function Home() {
-  const { role, submissions, addSubmission, updateStatus } = useApp();
+  const { role, authReady } = useApp();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!authReady) return;
+    if (role === "admin") router.replace('/submissions');
+    else if (role === "staff") router.replace('/submissions');
+  }, [role, authReady]);
+
+  if (!authReady || role) return <div className="min-h-screen bg-[#F8FAFC]" />;
 
   return (
     <DashboardLayoutWrapper>
-      <DashboardContent 
-        role={role}
-        activeTab="overview"
-        submissions={submissions}
-        addSubmission={addSubmission}
-        updateStatus={updateStatus}
-      />
+      <div />
     </DashboardLayoutWrapper>
   );
 }

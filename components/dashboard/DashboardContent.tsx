@@ -56,14 +56,13 @@ export default function DashboardContent({
     title: "",
     description: "",
     link: "",
-    category: "General",
   });
 
   const handleUploadSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.title || !formData.link) return;
     addSubmission(formData);
-    setFormData({ title: "", description: "", link: "", category: "General" });
+    setFormData({ title: "", description: "", link: "" });
   };
 
   const getStatusColor = (status: SubmissionStatus) => {
@@ -82,8 +81,7 @@ export default function DashboardContent({
   const filteredSubmissions = submissions.filter(
     (s) =>
       s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.staffName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.category?.toLowerCase().includes(searchQuery.toLowerCase()),
+      s.staffName.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   const stats = {
@@ -304,25 +302,7 @@ export default function DashboardContent({
                       required
                     />
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">
-                      Category
-                    </label>
-                    <select
-                      value={formData.category}
-                      onChange={(e) =>
-                        setFormData({ ...formData, category: e.target.value })
-                      }
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/5 focus:border-primary transition-all"
-                    >
-                      <option>General</option>
-                      <option>HR</option>
-                      <option>Finance</option>
-                      <option>Legal</option>
-                      <option>Operations</option>
-                    </select>
-                  </div>
-                  <div className="space-y-2">
+                  <div className="col-span-2 space-y-2">
                     <label className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">
                       Drive / File Link
                     </label>
@@ -505,9 +485,10 @@ function SubmissionTable({
   onApprove: (id: string) => void;
   onRejectInitiate: (id: string) => void;
 }) {
+  const [commentPopup, setCommentPopup] = React.useState<Submission | null>(null);
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-left border-collapse">
+      <table className="w-full text-left border-collapse table-fixed">
         <thead>
           <tr className="bg-slate-50 border-b border-slate-100">
             <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
@@ -518,9 +499,6 @@ function SubmissionTable({
                 Staff
               </th>
             )}
-            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
-              Category
-            </th>
             <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
               Submitted At
             </th>
@@ -546,7 +524,7 @@ function SubmissionTable({
                 className="group hover:bg-slate-50/50 transition-colors"
               >
                 <td className="px-6 py-4">
-                  <div className="max-w-xs">
+                  <div>
                     <p className="font-bold text-slate-800 truncate">
                       {s.title}
                     </p>
@@ -576,11 +554,6 @@ function SubmissionTable({
                     </div>
                   </td>
                 )}
-                <td className="px-6 py-4">
-                  <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg">
-                    {s.category || "General"}
-                  </span>
-                </td>
                 <td className="px-6 py-4 text-sm text-slate-500">
                   {new Date(s.createdAt).toLocaleDateString("en-US", {
                     month: "short",
@@ -609,7 +582,7 @@ function SubmissionTable({
                   </span>
                 </td>
                 <td className="px-6 py-4 text-right">
-                  <div className="flex justify-end gap-2 items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex justify-end gap-2 items-center">
                     {role === "admin" && s.status === "pending" ? (
                       <>
                         <button
@@ -626,30 +599,27 @@ function SubmissionTable({
                         </button>
                       </>
                     ) : (
-                      <>
-                        <a
-                          href={s.link}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="p-1.5 text-slate-400 hover:text-primary transition-colors"
-                        >
-                          <ExternalLink size={16} />
-                        </a>
-                        {s.adminComment && (
-                          <div className="relative group/comment">
-                            <MessageSquare
-                              size={16}
-                              className="text-amber-400 cursor-help"
-                            />
-                            <div className="absolute bottom-full right-0 mb-2 w-48 p-3 bg-slate-800 text-white text-[10px] leading-relaxed rounded-xl opacity-0 translate-y-2 pointer-events-none group-hover/comment:opacity-100 group-hover/comment:translate-y-0 transition-all z-50 shadow-xl">
-                              {s.adminComment}
-                            </div>
-                          </div>
+                      <div className="flex justify-end gap-2 items-center">
+                        {s.link && (
+                          <a
+                            href={s.link}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="p-1.5 text-slate-400 hover:text-primary transition-colors"
+                          >
+                            <ExternalLink size={16} />
+                          </a>
                         )}
-                        <button className="p-1.5 text-slate-300 hover:text-slate-600">
-                          <MoreVertical size={16} />
-                        </button>
-                      </>
+                        {s.status === "rejected" && (
+                          <button
+                            onClick={() => setCommentPopup(s)}
+                            className="p-1.5 text-rose-400 hover:text-rose-600 transition-colors"
+                            title="View rejection reason"
+                          >
+                            <MessageSquare size={16} />
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
                 </td>
@@ -658,6 +628,36 @@ function SubmissionTable({
           )}
         </tbody>
       </table>
+
+      {/* Rejection Comment Popup */}
+      <AnimatePresence>
+        {commentPopup && (
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[60] flex items-center justify-center p-6">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white w-full max-w-md rounded-3xl shadow-2xl border border-slate-100 p-8"
+            >
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-bold text-slate-800">Rejection Reason</h3>
+                <button onClick={() => setCommentPopup(null)} className="p-2 hover:bg-slate-50 rounded-full text-slate-400 transition-colors">
+                  <X size={20} />
+                </button>
+              </div>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">{commentPopup.title}</p>
+              <div className="bg-rose-50 border border-rose-100 rounded-xl p-4 mt-3">
+                {commentPopup.adminComment ? (
+                  <p className="text-sm text-rose-700 leading-relaxed">{commentPopup.adminComment}</p>
+                ) : (
+                  <p className="text-sm text-slate-400">No reason provided.</p>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       <div className="p-6 bg-slate-50/30 border-t border-slate-100 flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase tracking-widest">
         <span>Showing {submissions.length} results</span>
         <div className="flex gap-2">
