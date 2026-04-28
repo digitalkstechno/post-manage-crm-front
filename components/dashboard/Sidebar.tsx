@@ -30,7 +30,7 @@ export default function Sidebar({ currentRole, onLogout }: SidebarProps) {
     { id: 'overview', label: 'Overview', icon: LayoutDashboard, roles: ['admin', 'staff'], href: '/' },
     { id: 'submissions', label: 'Submissions', icon: FileText, roles: ['admin', 'staff'], href: '/submissions' },
     { id: 'directory', label: 'Staff Directory', icon: Users, roles: ['admin'], href: '/directory' },
-    { id: 'settings', label: 'Settings', icon: Settings, roles: ['admin', 'staff'], href: '/settings' },
+   
   ];
 
   const filteredItems = menuItems.filter(item => item.roles.includes(currentRole as string));

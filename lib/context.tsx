@@ -1,8 +1,7 @@
 'use client';
 
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useEffect ,useContext, useState, ReactNode } from 'react';
 import { Role, User, Submission, SubmissionStatus } from '@/lib/types';
-import { INITIAL_SUBMISSIONS } from '@/lib/mock-data';
 import { useRouter } from 'next/navigation';
 
 interface AppContextType {
@@ -20,8 +19,37 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export function AppProvider({ children }: { children: ReactNode }) {
   const [role, setRole] = useState<Role>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [submissions, setSubmissions] = useState<Submission[]>(INITIAL_SUBMISSIONS);
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
   const router = useRouter();
+
+ useEffect(() => {
+  const fetchData = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    // Submissions fetch
+    const res = await fetch('http://localhost:5001/api/submissions', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json();
+    if (data.success) {
+      const mapped = data.data.map((s: any) => ({
+        id: s._id,
+        title: s.title,
+        description: s.description,
+        category: s.category,
+        link: s.fileLink,
+        status: s.status.toLowerCase(), 
+        createdAt: s.createdAt,
+        staffName: s.submittedBy?.fullName || 'Unknown',
+        staffEmail: s.submittedBy?.email || '',
+      }));
+      setSubmissions(mapped);
+    }
+  };
+  fetchData();
+}, []);
+
 
   const login = (selectedRole: Role) => {
     setRole(selectedRole);
@@ -48,19 +76,35 @@ export function AppProvider({ children }: { children: ReactNode }) {
     router.push('/');
   };
 
-  const addSubmission = (data: Omit<Submission, 'id' | 'status' | 'createdAt' | 'staffName' | 'staffEmail'>) => {
-    const newSubmission: Submission = {
-      ...data,
-      id: Math.random().toString(36).substr(2, 9),
-      status: 'pending',
-      createdAt: new Date().toISOString(),
-      staffName: user?.name || 'Anonymous',
-      staffEmail: user?.email || 'anon@staffcore.pro'
-    };
-    setSubmissions([newSubmission, ...submissions]);
-    router.push('/submissions');
-  };
-
+ const addSubmission = async (data: any) => {
+  try {
+    const token = localStorage.getItem('token');
+    const res = await fetch('http://localhost:5001/api/submissions/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify(data),
+    });
+    const result = await res.json();
+    if (result.success) {
+      const s = result.data;
+      const mapped = {
+        id: s._id,
+        title: s.title,
+        description: s.description,
+        category: s.category,
+        link: s.fileLink,
+        status: s.status.toLowerCase(), 
+        createdAt: s.createdAt,
+        staffName: s.submittedBy?.fullName || 'Unknown',
+        staffEmail: s.submittedBy?.email || '',
+      };
+      setSubmissions([mapped, ...submissions]);
+    }
+  } catch (err) {
+    console.error(err);
+  }
+  router.push('/submissions');
+};
   const updateStatus = (id: string, status: SubmissionStatus, comment?: string) => {
     setSubmissions(submissions.map(s => 
       s.id === id ? { ...s, status, adminComment: comment } : s

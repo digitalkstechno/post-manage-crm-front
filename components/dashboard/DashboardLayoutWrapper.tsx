@@ -17,7 +17,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (pathname === '/submissions') return 'Documentation Queue';
     if (pathname === '/upload') return 'Create Submission';
     if (pathname === '/directory') return 'Staff Directory';
-    if (pathname === '/settings') return 'System Settings';
+  
     return 'StaffCore Portal';
   };
 
