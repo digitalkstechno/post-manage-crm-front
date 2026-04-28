@@ -21,3 +21,12 @@ export interface User {
   email: string;
   role: Role;
 }
+
+export interface StaffMember {
+  id: string;
+  name: string;
+  email: string;
+  role: Role;
+  department: string;
+  joinedAt: string;
+}

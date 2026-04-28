@@ -8,6 +8,8 @@ interface AppContextType {
   role: Role;
   user: User | null;
   submissions: Submission[];
+  searchQuery: string;
+  setSearchQuery: (q: string) => void;
   login: (role: Role) => void;
   logout: () => void;
   addSubmission: (data: Omit<Submission, 'id' | 'status' | 'createdAt' | 'staffName' | 'staffEmail'>) => void;
@@ -19,7 +21,8 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export function AppProvider({ children }: { children: ReactNode }) {
   const [role, setRole] = useState<Role>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [submissions, setSubmissions] = useState<Submission[]>(INITIAL_SUBMISSIONS);
+  const [searchQuery, setSearchQuery] = useState('');
   const router = useRouter();
 
  useEffect(() => {
@@ -68,6 +71,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         role: 'staff'
       });
     }
+    router.push('/submissions');
   };
 
   const logout = () => {
@@ -113,7 +117,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   return (
     <AppContext.Provider value={{ 
-      role, user, submissions, login, logout, addSubmission, updateStatus 
+      role, user, submissions, login, logout, 
+      addSubmission, updateStatus,
+      searchQuery, setSearchQuery
     }}>
       {children}
     </AppContext.Provider>
