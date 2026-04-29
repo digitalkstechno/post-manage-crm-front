@@ -346,25 +346,6 @@ export default function DashboardContent({
                 </div>
               </form>
             </div>
-
-            <div className="w-full md:w-80 space-y-6">
-              <div className="bg-primary rounded-3xl p-8 text-white relative overflow-hidden shadow-xl shadow-primary/10">
-                <h4 className="text-sm font-bold opacity-60 uppercase tracking-widest mb-2">
-                  Submission Policy
-                </h4>
-                <p className="text-sm leading-relaxed opacity-90 mb-6">
-                  Ensure all documents are properly categorized and links are
-                  shared for external viewing to avoid rejection.
-                </p>
-                <button className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest hover:underline">
-                  View Full Guidelines
-                  <ExternalLink size={14} />
-                </button>
-                <div className="absolute -right-6 -bottom-6 opacity-10">
-                  <FileText size={120} />
-                </div>
-              </div>
-            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -485,7 +466,9 @@ function SubmissionTable({
   onApprove: (id: string) => void;
   onRejectInitiate: (id: string) => void;
 }) {
-  const [commentPopup, setCommentPopup] = React.useState<Submission | null>(null);
+  const [commentPopup, setCommentPopup] = React.useState<Submission | null>(
+    null,
+  );
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-left border-collapse table-fixed">
@@ -536,18 +519,7 @@ function SubmissionTable({
                 {role === "admin" && (
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden relative">
-                        <Image
-                          src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${s.staffName}`}
-                          alt="Avatar"
-                          fill
-                          className="object-cover transition-opacity opacity-0 duration-300"
-                          onLoadingComplete={(img) =>
-                            img.classList.remove("opacity-0")
-                          }
-                          referrerPolicy="no-referrer"
-                        />
-                      </div>
+                      
                       <span className="text-sm font-semibold text-slate-600">
                         {s.staffName}
                       </span>
@@ -640,15 +612,24 @@ function SubmissionTable({
               className="bg-white w-full max-w-md rounded-3xl shadow-2xl border border-slate-100 p-8"
             >
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-bold text-slate-800">Rejection Reason</h3>
-                <button onClick={() => setCommentPopup(null)} className="p-2 hover:bg-slate-50 rounded-full text-slate-400 transition-colors">
+                <h3 className="text-lg font-bold text-slate-800">
+                  Rejection Reason
+                </h3>
+                <button
+                  onClick={() => setCommentPopup(null)}
+                  className="p-2 hover:bg-slate-50 rounded-full text-slate-400 transition-colors"
+                >
                   <X size={20} />
                 </button>
               </div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">{commentPopup.title}</p>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">
+                {commentPopup.title}
+              </p>
               <div className="bg-rose-50 border border-rose-100 rounded-xl p-4 mt-3">
                 {commentPopup.adminComment ? (
-                  <p className="text-sm text-rose-700 leading-relaxed">{commentPopup.adminComment}</p>
+                  <p className="text-sm text-rose-700 leading-relaxed">
+                    {commentPopup.adminComment}
+                  </p>
                 ) : (
                   <p className="text-sm text-slate-400">No reason provided.</p>
                 )}

@@ -85,19 +85,7 @@ export default function Sidebar({ currentRole, onLogout }: SidebarProps) {
     
 
         <div className="pt-4 border-t border-slate-200/50 space-y-1">
-          <div className="bg-slate-100/50 rounded-xl p-3 flex items-center gap-3 mb-2">
-            <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center overflow-hidden">
-              <ShieldCheck size={16} className="text-slate-400" />
-            </div>
-            <div className="flex-1 overflow-hidden">
-              <p className="text-[10px] font-bold text-slate-800 truncate">
-                System Secure
-              </p>
-              <p className="text-[9px] text-slate-400 uppercase tracking-tighter">
-                Identity Verified
-              </p>
-            </div>
-          </div>
+          
           <button
             onClick={onLogout}
             className="w-full flex items-center gap-3 px-3 py-2 text-slate-400 hover:text-rose-600 transition-colors text-xs font-bold uppercase tracking-widest"

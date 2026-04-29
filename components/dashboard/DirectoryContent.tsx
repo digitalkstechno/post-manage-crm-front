@@ -33,8 +33,8 @@ export default function DirectoryContent({
     id: s._id || s.id,
     name: s.fullName || s.name,
     email: s.email,
-    role: s.role || 'staff',
-    department: s.department || 'Engineering',
+    role: s.role || "staff",
+    department: s.department || "Engineering",
     joinedAt: s.createdAt || new Date().toISOString(),
   }));
   const [showModal, setShowModal] = useState(false);
@@ -46,29 +46,40 @@ export default function DirectoryContent({
     department: "Engineering",
     role: "staff" as Role,
   });
-  const [errors, setErrors] = useState<{ name?: string; email?: string; password?: string }>({});
+  const [errors, setErrors] = useState<{
+    name?: string;
+    email?: string;
+    password?: string;
+  }>({});
 
-const handleCreate = async (e: React.FormEvent) => {
-  e.preventDefault();
-  const newErrors: typeof errors = {};
-  if (!formData.name.trim()) newErrors.name = "Full name is required";
-  if (!formData.email.trim()) newErrors.email = "Email is required";
-  if (!formData.password.trim()) newErrors.password = "Password is required";
-  if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return; }
-  setErrors({});
-  await addStaff({
-    fullName: formData.name,
-    email: formData.email,
-    password: formData.password,
-  });
-  setShowModal(false);
-  setFormData({ name: '', email: '', password: '', department: 'Engineering', role: 'staff' });
-};
-
-  const handleDelete = (_id: string) => {
-    // local UI removal only
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const newErrors: typeof errors = {};
+    if (!formData.name.trim()) newErrors.name = "Full name is required";
+    if (!formData.email.trim()) newErrors.email = "Email is required";
+    if (!formData.password.trim()) newErrors.password = "Password is required";
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+    setErrors({});
+    await addStaff({
+      fullName: formData.name,
+      email: formData.email,
+      password: formData.password,
+      role: formData.role === 'admin' ? 'admin' : 'staff',
+    });
+    setShowModal(false);
+    setFormData({
+      name: "",
+      email: "",
+      password: "",
+      department: "Engineering",
+      role: "staff",
+    });
   };
 
+ 
   const filtered = staffList.filter(
     (s) =>
       s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -140,9 +151,6 @@ const handleCreate = async (e: React.FormEvent) => {
                 <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
                   Joined
                 </th>
-                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">
-                  Actions
-                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -206,16 +214,7 @@ const handleCreate = async (e: React.FormEvent) => {
                         year: "numeric",
                       })}
                     </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end gap-2">
-                        <button
-                          onClick={() => handleDelete(member.id)}
-                          className="p-1.5 bg-rose-50 text-rose-500 rounded-lg hover:bg-rose-100 transition-all border border-rose-100"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </td>
+                    
                   </tr>
                 ))
               )}
@@ -226,62 +225,6 @@ const handleCreate = async (e: React.FormEvent) => {
           </div>
         </div>
       </div>
-
-      {/* Documentation Queue — Rejected Submissions */}
-      {submissions.filter((s) => s.status === "rejected").length > 0 && (
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-100">
-            <h3 className="text-sm font-black text-slate-700 uppercase tracking-widest">
-              Documentation Queue
-            </h3>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-100">
-                  <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Title</th>
-                  <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Staff</th>
-                  <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Date</th>
-                  <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {submissions
-                  .filter((s) => s.status === "rejected")
-                  .map((s) => (
-                    <tr key={s.id} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="px-6 py-4">
-                        <p className="font-bold text-slate-800 truncate max-w-xs">{s.title}</p>
-                        <p className="text-xs text-slate-400 truncate mt-0.5">{s.description}</p>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-slate-600 font-semibold">{s.staffName}</td>
-                      <td className="px-6 py-4 text-sm text-slate-500">
-                        {new Date(s.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex justify-end gap-2 items-center">
-                          {s.link && (
-                            <a href={s.link} target="_blank" rel="noreferrer" className="p-1.5 text-slate-400 hover:text-primary transition-colors">
-                              <ExternalLink size={16} />
-                            </a>
-                          )}
-                          <button
-                            onClick={() => setCommentPopup(s)}
-                            className="p-1.5 text-rose-400 hover:text-rose-600 transition-colors"
-                            title="View rejection reason"
-                          >
-                            <MessageSquare size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
       {/* Comment Popup */}
       <AnimatePresence>
         {commentPopup && (
@@ -293,15 +236,24 @@ const handleCreate = async (e: React.FormEvent) => {
               className="bg-white w-full max-w-md rounded-3xl shadow-2xl border border-slate-100 p-8"
             >
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-bold text-slate-800">Rejection Reason</h3>
-                <button onClick={() => setCommentPopup(null)} className="p-2 hover:bg-slate-50 rounded-full text-slate-400 transition-colors">
+                <h3 className="text-lg font-bold text-slate-800">
+                  Rejection Reason
+                </h3>
+                <button
+                  onClick={() => setCommentPopup(null)}
+                  className="p-2 hover:bg-slate-50 rounded-full text-slate-400 transition-colors"
+                >
                   <X size={20} />
                 </button>
               </div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">{commentPopup.title}</p>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">
+                {commentPopup.title}
+              </p>
               <div className="bg-rose-50 border border-rose-100 rounded-xl p-4 mt-3">
                 {commentPopup.adminComment ? (
-                  <p className="text-sm text-rose-700 leading-relaxed">{commentPopup.adminComment}</p>
+                  <p className="text-sm text-rose-700 leading-relaxed">
+                    {commentPopup.adminComment}
+                  </p>
                 ) : (
                   <p className="text-sm text-slate-400">No reason provided.</p>
                 )}
@@ -339,16 +291,26 @@ const handleCreate = async (e: React.FormEvent) => {
                     Full Name
                   </label>
                   <div className="relative">
-                    <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                    <UserIcon
+                      className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                      size={16}
+                    />
                     <input
                       type="text"
                       value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, name: e.target.value })
+                      }
                       placeholder="e.g. John Smith"
-                      className={cn("w-full bg-slate-50 border rounded-xl pl-10 pr-4 py-3 text-slate-700 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-primary/5 focus:border-primary transition-all text-sm", errors.name ? "border-rose-400" : "border-slate-200")}
+                      className={cn(
+                        "w-full bg-slate-50 border rounded-xl pl-10 pr-4 py-3 text-slate-700 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-primary/5 focus:border-primary transition-all text-sm",
+                        errors.name ? "border-rose-400" : "border-slate-200",
+                      )}
                     />
                   </div>
-                  {errors.name && <p className="text-xs text-rose-500 ml-1">{errors.name}</p>}
+                  {errors.name && (
+                    <p className="text-xs text-rose-500 ml-1">{errors.name}</p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -356,16 +318,26 @@ const handleCreate = async (e: React.FormEvent) => {
                     Email
                   </label>
                   <div className="relative">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                    <Mail
+                      className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                      size={16}
+                    />
                     <input
                       type="email"
                       value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, email: e.target.value })
+                      }
                       placeholder="e.g. john@company.com"
-                      className={cn("w-full bg-slate-50 border rounded-xl pl-10 pr-4 py-3 text-slate-700 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-primary/5 focus:border-primary transition-all text-sm", errors.email ? "border-rose-400" : "border-slate-200")}
+                      className={cn(
+                        "w-full bg-slate-50 border rounded-xl pl-10 pr-4 py-3 text-slate-700 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-primary/5 focus:border-primary transition-all text-sm",
+                        errors.email ? "border-rose-400" : "border-slate-200",
+                      )}
                     />
                   </div>
-                  {errors.email && <p className="text-xs text-rose-500 ml-1">{errors.email}</p>}
+                  {errors.email && (
+                    <p className="text-xs text-rose-500 ml-1">{errors.email}</p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -373,16 +345,30 @@ const handleCreate = async (e: React.FormEvent) => {
                     Password
                   </label>
                   <div className="relative">
-                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                    <Lock
+                      className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                      size={16}
+                    />
                     <input
                       type="password"
                       value={formData.password}
-                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, password: e.target.value })
+                      }
                       placeholder="••••••••"
-                      className={cn("w-full bg-slate-50 border rounded-xl pl-10 pr-4 py-3 text-slate-700 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-primary/5 focus:border-primary transition-all text-sm", errors.password ? "border-rose-400" : "border-slate-200")}
+                      className={cn(
+                        "w-full bg-slate-50 border rounded-xl pl-10 pr-4 py-3 text-slate-700 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-primary/5 focus:border-primary transition-all text-sm",
+                        errors.password
+                          ? "border-rose-400"
+                          : "border-slate-200",
+                      )}
                     />
                   </div>
-                  {errors.password && <p className="text-xs text-rose-500 ml-1">{errors.password}</p>}
+                  {errors.password && (
+                    <p className="text-xs text-rose-500 ml-1">
+                      {errors.password}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -390,10 +376,15 @@ const handleCreate = async (e: React.FormEvent) => {
                     Department
                   </label>
                   <div className="relative">
-                    <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                    <Building2
+                      className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                      size={16}
+                    />
                     <select
                       value={formData.department}
-                      onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, department: e.target.value })
+                      }
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-3 text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/5 focus:border-primary transition-all text-sm appearance-none"
                     >
                       <option>Engineering</option>
@@ -413,7 +404,9 @@ const handleCreate = async (e: React.FormEvent) => {
                   <div className="grid grid-cols-2 gap-3">
                     <button
                       type="button"
-                      onClick={() => setFormData({ ...formData, role: "staff" })}
+                      onClick={() =>
+                        setFormData({ ...formData, role: "staff" })
+                      }
                       className={cn(
                         "flex flex-col items-center gap-2 p-4 rounded-2xl border transition-all",
                         formData.role === "staff"
@@ -422,11 +415,15 @@ const handleCreate = async (e: React.FormEvent) => {
                       )}
                     >
                       <UserIcon size={20} />
-                      <span className="text-[10px] font-black uppercase tracking-widest">Employee</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest">
+                        Employee
+                      </span>
                     </button>
                     <button
                       type="button"
-                      onClick={() => setFormData({ ...formData, role: "admin" })}
+                      onClick={() =>
+                        setFormData({ ...formData, role: "admin" })
+                      }
                       className={cn(
                         "flex flex-col items-center gap-2 p-4 rounded-2xl border transition-all",
                         formData.role === "admin"
@@ -435,7 +432,9 @@ const handleCreate = async (e: React.FormEvent) => {
                       )}
                     >
                       <ShieldCheck size={20} />
-                      <span className="text-[10px] font-black uppercase tracking-widest">Executive</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest">
+                        Executive
+                      </span>
                     </button>
                   </div>
                 </div>

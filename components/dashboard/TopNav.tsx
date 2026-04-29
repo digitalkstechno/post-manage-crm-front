@@ -50,9 +50,7 @@ export default function TopNav({
           <Bell size={20} />
           <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full border-2 border-white"></span>
         </button>
-        <button className="p-2 text-slate-500 hover:bg-slate-50 rounded-full transition-colors">
-          <HelpCircle size={20} />
-        </button>
+        
         <div className="h-8 w-[1px] bg-slate-200 mx-2"></div>
         <div className="flex items-center gap-3">
           
