@@ -60,7 +60,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (savedUser) setUser(JSON.parse(savedUser));
 
       try {
-        const res = await fetch("http://localhost:5001/api/submissions", {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/submissions`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await res.json();
@@ -88,7 +88,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
   const fetchStaff = async () => {
     const token = localStorage.getItem("token");
-    const res = await fetch("http://localhost:5001/api/staff/", {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/staff/`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
     const data = await res.json();
@@ -98,7 +98,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string, selectedRole: Role) => {
     try {
-      const res = await fetch("http://localhost:5001/api/staff/login", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/staff/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -122,7 +122,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setUser(userData);
 
         // Submissions fetch
-        const subRes = await fetch("http://localhost:5001/api/submissions", {
+        const subRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/submissions`, {
           headers: { Authorization: `Bearer ${result.token}` },
         });
         const subData = await subRes.json();
@@ -175,7 +175,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const res = await fetch("http://localhost:5001/api/submissions/create", {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/submissions/create`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -220,7 +220,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   ) => {
     try {
       const token = localStorage.getItem("token");
-      await fetch(`http://localhost:5001/api/submissions/${id}`, {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/submissions/${id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -243,7 +243,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const addStaff = async (data: any) => {
     const token = localStorage.getItem("token");
-    const res = await fetch("http://localhost:5001/api/staff/create", {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/staff/create`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
