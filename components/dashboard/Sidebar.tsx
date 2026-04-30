@@ -43,7 +43,7 @@ export default function Sidebar({ currentRole, onLogout }: SidebarProps) {
       label: "Companies",
       icon: Building2,
       roles: ["admin"],
-      href: "/company",
+      href: "/companies",
     },
   ];
 

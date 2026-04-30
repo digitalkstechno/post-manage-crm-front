@@ -29,7 +29,6 @@ interface DashboardContentProps {
   activeTab: string;
   submissions: Submission[];
   searchQuery?: string;
-  companies?: any[];
   addSubmission: (
     s: Omit<
       Submission,
@@ -50,7 +49,6 @@ export default function DashboardContent({
   activeTab,
   submissions,
   searchQuery = "",
-  companies = [],
   addSubmission,
   updateStatus,
   resubmit,
@@ -88,7 +86,13 @@ export default function DashboardContent({
       return;
     }
     addSubmission(formData);
-    setFormData({ title: "", description: "", link: "", company: "", uploadAt: "" });
+    setFormData({
+      title: "",
+      description: "",
+      link: "",
+      company: "",
+      uploadAt: "",
+    });
   };
 
   const getStatusColor = (status: SubmissionStatus) => {
@@ -130,7 +134,7 @@ export default function DashboardContent({
     <div className="p-8 pb-20 max-w-7xl mx-auto space-y-8">
       {/* Stats Section */}
       {(activeTab === "overview" || activeTab === "submissions") && (
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <StatCard
             label="Total Submissions"
             value={stats.total}
@@ -225,7 +229,10 @@ export default function DashboardContent({
                 onApprove={(id) => updateStatus(id, "approved")}
                 onRejectInitiate={(id) => setShowRejectModal(id)}
                 onReworkInitiate={() => {}}
-                onResubmitInitiate={(s) => { setReworkModal(s); setReworkLink(s.link); }}
+                onResubmitInitiate={(s) => {
+                  setReworkModal(s);
+                  setReworkLink(s.link);
+                }}
                 onPostSocial={role === "admin" ? setSocialModal : undefined}
               />
             </div>
@@ -320,7 +327,10 @@ export default function DashboardContent({
                 onApprove={(id) => updateStatus(id, "approved")}
                 onRejectInitiate={(id) => setShowRejectModal(id)}
                 onReworkInitiate={() => {}}
-                onResubmitInitiate={(s) => { setReworkModal(s); setReworkLink(s.link); }}
+                onResubmitInitiate={(s) => {
+                  setReworkModal(s);
+                  setReworkLink(s.link);
+                }}
                 onPostSocial={role === "admin" ? setSocialModal : undefined}
               />
             </div>
@@ -360,7 +370,7 @@ export default function DashboardContent({
                       required
                     />
                   </div>
-                  
+
                   <div className="col-span-2 space-y-2">
                     <label className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">
                       Drive Link
@@ -368,7 +378,9 @@ export default function DashboardContent({
                     <input
                       type="url"
                       value={formData.link}
-                      onChange={(e) => setFormData({ ...formData, link: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, link: e.target.value })
+                      }
                       placeholder="https://drive.google.com/..."
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-700 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-primary/5 focus:border-primary transition-all"
                       required
@@ -380,12 +392,16 @@ export default function DashboardContent({
                     </label>
                     <select
                       value={formData.company}
-                      onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, company: e.target.value })
+                      }
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/5 focus:border-primary transition-all"
                     >
                       <option value="">Select Company</option>
                       {companies.map((c) => (
-                        <option key={c.id} value={c.name}>{c.name}</option>
+                        <option key={c.id} value={c.name}>
+                          {c.name}
+                        </option>
                       ))}
                     </select>
                   </div>
@@ -397,7 +413,9 @@ export default function DashboardContent({
                       type="datetime-local"
                       value={formData.uploadAt}
                       min={nowLocal()}
-                      onChange={(e) => setFormData({ ...formData, uploadAt: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, uploadAt: e.target.value })
+                      }
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/5 focus:border-primary transition-all"
                     />
                   </div>
@@ -443,8 +461,16 @@ export default function DashboardContent({
             className="bg-white w-full max-w-md rounded-3xl shadow-2xl border border-slate-100 p-8"
           >
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-bold text-slate-800 tracking-tight">Reject Submission</h3>
-              <button onClick={() => { setShowRejectModal(null); setRejectComment(""); }} className="p-2 hover:bg-slate-50 rounded-full text-slate-400 transition-colors">
+              <h3 className="text-xl font-bold text-slate-800 tracking-tight">
+                Reject Submission
+              </h3>
+              <button
+                onClick={() => {
+                  setShowRejectModal(null);
+                  setRejectComment("");
+                }}
+                className="p-2 hover:bg-slate-50 rounded-full text-slate-400 transition-colors"
+              >
                 <X size={20} />
               </button>
             </div>
@@ -460,7 +486,10 @@ export default function DashboardContent({
             />
             <div className="flex gap-3 justify-end">
               <button
-                onClick={() => { setShowRejectModal(null); setRejectComment(""); }}
+                onClick={() => {
+                  setShowRejectModal(null);
+                  setRejectComment("");
+                }}
                 className="px-6 py-2.5 text-sm font-semibold text-slate-500 hover:text-slate-800"
               >
                 Cancel
@@ -501,18 +530,29 @@ export default function DashboardContent({
               className="bg-white w-full max-w-md rounded-3xl shadow-2xl border border-slate-100 p-8"
             >
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-bold text-slate-800">Resubmit — {reworkModal.title}</h3>
-                <button onClick={() => setReworkModal(null)} className="p-2 hover:bg-slate-50 rounded-full text-slate-400 transition-colors">
+                <h3 className="text-lg font-bold text-slate-800">
+                  Resubmit — {reworkModal.title}
+                </h3>
+                <button
+                  onClick={() => setReworkModal(null)}
+                  className="p-2 hover:bg-slate-50 rounded-full text-slate-400 transition-colors"
+                >
                   <X size={20} />
                 </button>
               </div>
               {reworkModal.adminComment && (
                 <div className="bg-violet-50 border border-violet-100 rounded-xl p-3 mb-4">
-                  <p className="text-[10px] font-black text-violet-400 uppercase tracking-widest mb-1">Admin Note</p>
-                  <p className="text-sm text-violet-700">{reworkModal.adminComment}</p>
+                  <p className="text-[10px] font-black text-violet-400 uppercase tracking-widest mb-1">
+                    Admin Note
+                  </p>
+                  <p className="text-sm text-violet-700">
+                    {reworkModal.adminComment}
+                  </p>
                 </div>
               )}
-              <label className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">Updated Drive / File Link</label>
+              <label className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">
+                Updated Drive / File Link
+              </label>
               <input
                 type="url"
                 value={reworkLink}
@@ -521,7 +561,12 @@ export default function DashboardContent({
                 className="w-full mt-2 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-700 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-primary/5 focus:border-primary transition-all text-sm mb-6"
               />
               <div className="flex gap-3 justify-end">
-                <button onClick={() => setReworkModal(null)} className="px-6 py-2.5 text-sm font-semibold text-slate-500 hover:text-slate-800">Cancel</button>
+                <button
+                  onClick={() => setReworkModal(null)}
+                  className="px-6 py-2.5 text-sm font-semibold text-slate-500 hover:text-slate-800"
+                >
+                  Cancel
+                </button>
                 <button
                   onClick={async () => {
                     if (!reworkLink.trim()) return;
@@ -625,10 +670,14 @@ function SubmissionTable({
 }) {
   const PAGE_SIZE = 10;
   const [page, setPage] = React.useState(1);
-  const [commentPopup, setCommentPopup] = React.useState<Submission | null>(null);
+  const [commentPopup, setCommentPopup] = React.useState<Submission | null>(
+    null,
+  );
 
   // Reset to page 1 when submissions list changes (filter/search)
-  React.useEffect(() => { setPage(1); }, [submissions.length]);
+  React.useEffect(() => {
+    setPage(1);
+  }, [submissions.length]);
 
   const totalPages = Math.max(1, Math.ceil(submissions.length / PAGE_SIZE));
   const paged = submissions.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -637,27 +686,27 @@ function SubmissionTable({
       <table className="w-full text-left border-collapse table-fixed">
         <thead>
           <tr className="bg-slate-50 border-b border-slate-100">
-            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+            <th className="px-4 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
               Submission
             </th>
             {role === "admin" && (
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+              <th className="px-4 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
                 Staff
               </th>
             )}
-            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+            <th className="px-4 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
               Submitted At
             </th>
-            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+            <th className="px-4 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
               Upload At
             </th>
-            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+            <th className="px-4 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
               Company
             </th>
-            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+            <th className="px-4 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
               Status
             </th>
-            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">
+            <th className="px-4 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">
               Actions
             </th>
           </tr>
@@ -675,7 +724,7 @@ function SubmissionTable({
                 key={s.id}
                 className="group hover:bg-slate-50/50 transition-colors"
               >
-                <td className="px-6 py-4">
+                <td className="px-4 py-4">
                   <div>
                     <p className="font-bold text-slate-800 truncate">
                       {s.title}
@@ -686,7 +735,7 @@ function SubmissionTable({
                   </div>
                 </td>
                 {role === "admin" && (
-                  <td className="px-6 py-4">
+                  <td className="px-2 py-4">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-semibold text-slate-600">
                         {s.staffName}
@@ -694,54 +743,81 @@ function SubmissionTable({
                     </div>
                   </td>
                 )}
-                <td className="px-6 py-4 text-sm text-slate-500">
+                <td className="px-2 py-4 text-sm text-slate-500">
                   {new Date(s.createdAt).toLocaleDateString("en-US", {
                     month: "short",
                     day: "numeric",
                     year: "numeric",
                   })}
                 </td>
-                <td className="px-6 py-4 text-sm text-slate-500">
-                  {s.uploadAt
-                    ? new Date(s.uploadAt).toLocaleString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })
-                    : <span className="text-slate-300">—</span>}
+                <td className="px-2 py-4 text-sm text-slate-500">
+                  {s.uploadAt ? (
+                    new Date(s.uploadAt).toLocaleString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
+                  ) : (
+                    <span className="text-slate-300">—</span>
+                  )}
                 </td>
-                <td className="px-6 py-4">
+                <td className="px-2 py-4">
                   <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg">
                     {s.companyName || s.company || "—"}
                   </span>
                 </td>
-                <td className="px-6 py-4">
-                  <span
-                    className={cn(
-                      "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border",
-                      getStatusColor(s.status),
-                    )}
-                  >
-                    <div
+                <td className="px-2 py-4">
+                  <div className="flex flex-col gap-1 items-start">
+                    <span
                       className={cn(
-                        "w-1.5 h-1.5 rounded-full",
-                        s.status === "approved"
-                          ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"
-                          : s.status === "rejected"
-                            ? "bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]"
-                            : s.status === "rework"
-                              ? "bg-violet-500 shadow-[0_0_8px_rgba(139,92,246,0.5)]"
-                              : "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]",
+                        "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border",
+                        getStatusColor(s.status),
                       )}
-                    />
-                    {s.status}
-                  </span>
+                    >
+                      <div
+                        className={cn(
+                          "w-1.5 h-1.5 rounded-full",
+                          s.status === "approved"
+                            ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"
+                            : s.status === "rejected"
+                              ? "bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]"
+                              : s.status === "rework"
+                                ? "bg-violet-500 shadow-[0_0_8px_rgba(139,92,246,0.5)]"
+                                : "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]",
+                        )}
+                      />
+                      {s.status}
+                    </span>
+                    {/* {s.status === "rejected" && (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border bg-violet-50 text-violet-700 border-violet-100">
+                        <div className="w-1.5 h-1.5 rounded-full bg-violet-500 shadow-[0_0_8px_rgba(139,92,246,0.5)]" />
+                        rework
+                      </span>
+                    )} */}
+                    {s.status === "rejected" && role === "staff" && (
+                      <button
+                        onClick={() => onResubmitInitiate(s)}
+                        className="px-3 py-1 bg-violet-50 text-violet-600 rounded-full hover:bg-violet-100 transition-all border border-violet-100 text-[10px] font-black uppercase tracking-widest"
+                      >
+                        Rework
+                      </button>
+                    )}
+                    {s.status === "rework" && role === "staff" && (
+                      <button
+                        onClick={() => onResubmitInitiate(s)}
+                        className="px-3 py-1 bg-violet-600 text-white rounded-full hover:bg-violet-700 transition-all text-[10px] font-black uppercase tracking-widest"
+                      >
+                        Submit Rework
+                      </button>
+                    )}
+                  </div>
                 </td>
-                <td className="px-6 py-4 text-right">
+                <td className="px-4 py-4 text-right">
                   <div className="flex justify-end gap-2 items-center">
-                    {role === "admin" && (s.status === "pending" || s.status === "rework") ? (
+                    {role === "admin" &&
+                    (s.status === "pending" || s.status === "rework") ? (
                       <>
                         <button
                           onClick={() => onApprove(s.id)}
@@ -758,7 +834,12 @@ function SubmissionTable({
                           <X size={16} />
                         </button>
                         {s.link && (
-                          <a href={s.link} target="_blank" rel="noreferrer" className="p-1.5 text-slate-400 hover:text-primary transition-colors">
+                          <a
+                            href={s.link}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="p-1.5 text-slate-400 hover:text-primary transition-colors"
+                          >
                             <ExternalLink size={16} />
                           </a>
                         )}
@@ -766,57 +847,59 @@ function SubmissionTable({
                     ) : role === "admin" && s.status === "rejected" ? (
                       <div className="flex justify-end gap-2 items-center">
                         <button
-                          onClick={() => setCommentPopup(s)}
-                          className="p-1.5 text-rose-400 hover:text-rose-600 transition-colors"
-                          title="View rejection reason"
-                        >
-                          <MessageSquare size={16} />
-                        </button>
-                        <button
                           onClick={() => onRejectInitiate(s.id)}
                           className="px-2 py-1.5 bg-violet-50 text-violet-600 rounded-lg hover:bg-violet-100 transition-all border border-violet-100 text-[10px] font-black uppercase tracking-widest"
                           title="Request Rework"
                         >
                           Rework
                         </button>
+                        <button
+                          onClick={() => setCommentPopup(s)}
+                          className=" text-rose-400 hover:text-rose-600 transition-colors"
+                          title="View rejection reason"
+                        >
+                          <MessageSquare size={16} />
+                        </button>
                         {s.link && (
-                          <a href={s.link} target="_blank" rel="noreferrer" className="p-1.5 text-slate-400 hover:text-primary transition-colors">
+                          <a
+                            href={s.link}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="p-1.5 text-slate-400 hover:text-primary transition-colors"
+                          >
                             <ExternalLink size={16} />
                           </a>
                         )}
                       </div>
                     ) : (
-                      <div className="flex justify-end gap-2 items-center">
-                        {(s.status === "rejected" || s.status === "rework") && (
-                          <button
-                            onClick={() => setCommentPopup(s)}
-                            className={cn("p-1.5 transition-colors", s.status === "rework" ? "text-violet-400 hover:text-violet-600" : "text-rose-400 hover:text-rose-600")}
-                            title="View admin note"
-                          >
-                            <MessageSquare size={16} />
-                          </button>
-                        )}
-                        {s.status === "rejected" && role === "staff" && (
-                          <button
-                            onClick={() => onResubmitInitiate(s)}
-                            className="px-3 py-1.5 bg-violet-600 text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-violet-700 transition-all"
-                          >
-                            Rework
-                          </button>
-                        )}
-                        {s.status === "rework" && role === "staff" && (
-                          <button
-                            onClick={() => onResubmitInitiate(s)}
-                            className="px-3 py-1.5 bg-violet-600 text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-violet-700 transition-all"
-                          >
-                            Rework
-                          </button>
-                        )}
-                        {s.link && s.status !== "rework" && (
-                          <a href={s.link} target="_blank" rel="noreferrer" className="p-1.5 text-slate-400 hover:text-primary transition-colors">
-                            <ExternalLink size={16} />
-                          </a>
-                        )}
+                      <div className="flex flex-col items-end gap-1">
+                        <div className="flex justify-end gap-2 items-center">
+                          {(s.status === "rejected" ||
+                            s.status === "rework") && (
+                            <button
+                              onClick={() => setCommentPopup(s)}
+                              className={cn(
+                                "p-1.5 transition-colors",
+                                s.status === "rework"
+                                  ? "text-violet-400 hover:text-violet-600"
+                                  : "text-rose-400 hover:text-rose-600",
+                              )}
+                              title="View admin note"
+                            >
+                              <MessageSquare size={16} />
+                            </button>
+                          )}
+                          {s.link && s.status !== "rework" && (
+                            <a
+                              href={s.link}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="p-1.5 text-slate-400 hover:text-primary transition-colors"
+                            >
+                              <ExternalLink size={16} />
+                            </a>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -873,7 +956,9 @@ function SubmissionTable({
           >
             Prev
           </button>
-          <span className="text-slate-500">{page} / {totalPages}</span>
+          <span className="text-slate-500">
+            {page} / {totalPages}
+          </span>
           <button
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             className="px-3 py-1 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
