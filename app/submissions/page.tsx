@@ -11,9 +11,7 @@ export default function SubmissionsPage() {
     addSubmission,
     updateStatus,
     searchQuery,
-    companies,
     resubmit,
-    postToSocial,
   } = useApp();
 
   return (
@@ -23,11 +21,9 @@ export default function SubmissionsPage() {
         activeTab="submissions"
         submissions={submissions}
         searchQuery={searchQuery}
-        companies={companies}
         addSubmission={addSubmission}
         updateStatus={updateStatus}
         resubmit={resubmit}
-        postToSocial={postToSocial}
       />
     </DashboardLayoutWrapper>
   );

@@ -5,7 +5,7 @@ import DashboardLayoutWrapper from '@/components/dashboard/DashboardLayoutWrappe
 import { useApp } from '@/lib/context';
 
 export default function UploadPage() {
-  const { role, submissions, addSubmission, updateStatus, companies } = useApp();
+  const { role, submissions, addSubmission, updateStatus } = useApp();
 
   return (
     <DashboardLayoutWrapper>
@@ -13,7 +13,6 @@ export default function UploadPage() {
         role={role}
         activeTab="upload"
         submissions={submissions}
-        companies={companies}
         addSubmission={addSubmission}
         updateStatus={updateStatus}
       />
