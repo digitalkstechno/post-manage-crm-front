@@ -8,7 +8,7 @@ import LoginView from "@/components/dashboard/LoginView";
 import { motion, AnimatePresence } from "motion/react";
 import { usePathname } from "next/navigation";
 
-const PROTECTED = ['/submissions', '/upload', '/directory', '/admin'];
+const PROTECTED = ['/submissions', '/upload', '/directory', '/admin', '/companies'];
 
 export default function DashboardLayout({
   children,
@@ -29,7 +29,8 @@ export default function DashboardLayout({
     if (pathname === '/submissions') return 'Documentation Queue';
     if (pathname === '/upload') return 'Create Submission';
     if (pathname === '/directory') return 'Staff Directory';
-    return 'StaffCore Portal';
+    if (pathname === '/companies') return 'Companies';
+    return 'SMM Portal';
   };
 
   return (

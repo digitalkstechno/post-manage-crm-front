@@ -44,7 +44,7 @@ export default function LoginView({ onLogin }: LoginViewProps) {
             <ShieldCheck className="text-primary" size={40} />
           </div>
           <h1 className="text-4xl font-black text-slate-800 tracking-tighter">
-            StaffCore Pro
+            SMM Pro
           </h1>
           <p className="text-slate-400 font-bold uppercase tracking-[0.2em] text-[10px] mt-2">
             Enterprise Resource Portal
