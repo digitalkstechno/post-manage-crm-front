@@ -1,22 +1,33 @@
-'use client';
+"use client";
 
-import DashboardContent from '@/components/dashboard/DashboardContent';
-import DashboardLayoutWrapper from '@/components/dashboard/DashboardLayoutWrapper';
-import { useApp } from '@/lib/context';
+import DashboardContent from "@/components/dashboard/DashboardContent";
+import DashboardLayoutWrapper from "@/components/dashboard/DashboardLayoutWrapper";
+import { useApp } from "@/lib/context";
 
 export default function SubmissionsPage() {
-  const { role, submissions, addSubmission, updateStatus, searchQuery, resubmit } = useApp();
+  const {
+    role,
+    submissions,
+    addSubmission,
+    updateStatus,
+    searchQuery,
+    companies,
+    resubmit,
+    postToSocial,
+  } = useApp();
 
   return (
     <DashboardLayoutWrapper>
-      <DashboardContent 
+      <DashboardContent
         role={role}
         activeTab="submissions"
         submissions={submissions}
         searchQuery={searchQuery}
+        companies={companies}
         addSubmission={addSubmission}
         updateStatus={updateStatus}
         resubmit={resubmit}
+        postToSocial={postToSocial}
       />
     </DashboardLayoutWrapper>
   );

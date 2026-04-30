@@ -5,7 +5,6 @@ import Image from "next/image";
 import {
   Search,
   Bell,
-  HelpCircle,
   ShieldCheck,
   User as UserIcon,
 } from "lucide-react";

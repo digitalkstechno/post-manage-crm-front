@@ -20,6 +20,8 @@ export interface Submission {
   status: SubmissionStatus;
   createdAt: string;
   adminComment?: string;
+  postedToSocial?: boolean;
+  socialPostedAt?: string;
 }
 
 export interface User {

@@ -16,6 +16,7 @@ import {
   MoreVertical,
   Check,
   X,
+  Share2,
 } from "lucide-react";
 import { Submission, Role, SubmissionStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -28,6 +29,7 @@ interface DashboardContentProps {
   activeTab: string;
   submissions: Submission[];
   searchQuery?: string;
+  companies?: any[];
   addSubmission: (
     s: Omit<
       Submission,
@@ -40,6 +42,7 @@ interface DashboardContentProps {
     comment?: string,
   ) => void;
   resubmit?: (id: string, fileLink: string) => Promise<void>;
+  postToSocial?: (id: string) => Promise<void>;
 }
 
 export default function DashboardContent({
@@ -47,9 +50,11 @@ export default function DashboardContent({
   activeTab,
   submissions,
   searchQuery = "",
+  companies = [],
   addSubmission,
   updateStatus,
   resubmit,
+  postToSocial,
 }: DashboardContentProps) {
   const { companies } = useApp();
   const [showRejectModal, setShowRejectModal] = useState<string | null>(null);
@@ -57,6 +62,8 @@ export default function DashboardContent({
   const [reworkModal, setReworkModal] = useState<Submission | null>(null);
   const [reworkLink, setReworkLink] = useState("");
   const [activeFilter, setActiveFilter] = useState<string>("all");
+  const [socialModal, setSocialModal] = useState<Submission | null>(null);
+  const [posting, setPosting] = useState(false);
 
   // Local state for the upload form
   const [formData, setFormData] = useState({
@@ -219,6 +226,7 @@ export default function DashboardContent({
                 onRejectInitiate={(id) => setShowRejectModal(id)}
                 onReworkInitiate={() => {}}
                 onResubmitInitiate={(s) => { setReworkModal(s); setReworkLink(s.link); }}
+                onPostSocial={role === "admin" ? setSocialModal : undefined}
               />
             </div>
 
@@ -313,6 +321,7 @@ export default function DashboardContent({
                 onRejectInitiate={(id) => setShowRejectModal(id)}
                 onReworkInitiate={() => {}}
                 onResubmitInitiate={(s) => { setReworkModal(s); setReworkLink(s.link); }}
+                onPostSocial={role === "admin" ? setSocialModal : undefined}
               />
             </div>
           </motion.div>
@@ -351,9 +360,10 @@ export default function DashboardContent({
                       required
                     />
                   </div>
+                  
                   <div className="col-span-2 space-y-2">
                     <label className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">
-                      Drive / File Link
+                      Drive Link
                     </label>
                     <input
                       type="url"
@@ -602,6 +612,7 @@ function SubmissionTable({
   onRejectInitiate,
   onReworkInitiate,
   onResubmitInitiate,
+  onPostSocial,
 }: {
   submissions: Submission[];
   role: Role;
@@ -610,6 +621,7 @@ function SubmissionTable({
   onRejectInitiate: (id: string) => void;
   onReworkInitiate: (id: string) => void;
   onResubmitInitiate: (s: Submission) => void;
+  onPostSocial?: (s: Submission) => void;
 }) {
   const PAGE_SIZE = 10;
   const [page, setPage] = React.useState(1);

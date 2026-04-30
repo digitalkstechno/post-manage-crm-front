@@ -8,6 +8,7 @@ import React, {
   ReactNode,
 } from "react";
 import { Role, User, Submission, SubmissionStatus, Company } from "@/lib/types";
+import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 
 interface AppContextType {
@@ -26,6 +27,7 @@ interface AppContextType {
   addCompany: (name: string) => Promise<void>;
   deleteCompany: (id: string) => Promise<void>;
   resubmit: (id: string, fileLink: string) => Promise<void>;
+  postToSocial: (id: string) => Promise<void>;
   updateStatus: (
     id: string,
     status: SubmissionStatus,
@@ -128,6 +130,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setStaffList(list);
   };
 
+  const fetchCompanies = async () => {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/companies/`);
+    const data = await res.json();
+    setCompanies(Array.isArray(data.data) ? data.data : []);
+  };
+
   const login = async (email: string, password: string, selectedRole: Role) => {
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/staff/login`, {
@@ -180,12 +188,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
         // Role based redirect
         if (backendRole === "admin") {
-          router.push("/submissions"); // admin - same submissions page, approve/reject buttons auto show thase
+          router.push("/submissions");
         } else {
-          router.push("/submissions"); // staff - same page, limited view
+          router.push("/submissions");
         }
       } else {
-        alert("Login failed: " + result.message);
+        toast.error(result.message || "Invalid email or password");
       }
     } catch (err) {
       console.error("Login error:", err);
@@ -207,15 +215,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
   try {
     const token = localStorage.getItem("token");
     if (!token) {
-      alert("Please login first");
+      toast.error("Please login first");
       router.push("/");
       return;
     }
 
+    const formData = new FormData();
+    formData.append("title", data.title);
+    formData.append("description", data.description || "");
+    formData.append("fileLink", data.link || "");
+    formData.append("company", data.company || "");
+    if (data.atFile) formData.append("atFile", data.atFile);
+
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/submissions/create`, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
@@ -248,13 +262,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setSubmissions((prev) => [mapped, ...prev]); // ✅ list ma add thase
       router.push("/submissions"); // ✅ submit pachhi redirect
     } else {
-      alert("Submission failed: " + result.message);
+      toast.error(result.message || "Submission failed");
     }
   } catch (err) {
     console.error(err);
-    alert("Something went wrong!");
+    toast.error("Something went wrong!");
   }
 };
+  const postToSocial = async (id: string) => {
+    const token = localStorage.getItem("token");
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/submissions/${id}/post-social`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const result = await res.json();
+    if (result.success) {
+      setSubmissions((prev) =>
+        prev.map((s) => s.id === id ? { ...s, postedToSocial: true, socialPostedAt: result.data.socialPostedAt } : s)
+      );
+    } else {
+      toast.error(result.message || "Failed to post");
+    }
+  };
+
   const updateStatus = async (
     id: string,
     status: SubmissionStatus,
@@ -338,6 +368,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (result.data?._id) {
       await fetchStaff();
     }
+  };
+
+  const addCompany = async (name: string) => {
+    const token = localStorage.getItem("token");
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/companies/create`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ name }),
+    });
+    const result = await res.json();
+    if (result.success) await fetchCompanies();
+    else toast.error(result.message);
+  };
+
+  const deleteCompany = async (id: string) => {
+    const token = localStorage.getItem("token");
+    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/companies/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    await fetchCompanies();
   };
 
   return (
