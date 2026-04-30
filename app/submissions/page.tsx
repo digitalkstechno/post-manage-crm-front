@@ -5,7 +5,7 @@ import DashboardLayoutWrapper from '@/components/dashboard/DashboardLayoutWrappe
 import { useApp } from '@/lib/context';
 
 export default function SubmissionsPage() {
-  const { role, submissions, addSubmission, updateStatus, searchQuery } = useApp();
+  const { role, submissions, addSubmission, updateStatus, searchQuery, companies, postToSocial } = useApp();
 
   return (
     <DashboardLayoutWrapper>
@@ -14,8 +14,10 @@ export default function SubmissionsPage() {
         activeTab="submissions"
         submissions={submissions}
         searchQuery={searchQuery}
+        companies={companies}
         addSubmission={addSubmission}
         updateStatus={updateStatus}
+        postToSocial={postToSocial}
       />
     </DashboardLayoutWrapper>
   );

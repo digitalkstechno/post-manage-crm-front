@@ -8,6 +8,7 @@ import React, {
   ReactNode,
 } from "react";
 import { Role, User, Submission, SubmissionStatus } from "@/lib/types";
+import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 
 interface AppContextType {
@@ -15,6 +16,7 @@ interface AppContextType {
   user: User | null;
   submissions: Submission[];
   staffList: any[];
+  companies: any[];
   searchQuery: string;
   authReady: boolean;
   setSearchQuery: (q: string) => void;
@@ -22,6 +24,9 @@ interface AppContextType {
   logout: () => void;
   addSubmission: (data: any) => Promise<void>;
   addStaff: (data: any) => Promise<void>;
+  addCompany: (name: string) => Promise<void>;
+  deleteCompany: (id: string) => Promise<void>;
+  postToSocial: (id: string) => Promise<void>;
   updateStatus: (
     id: string,
     status: SubmissionStatus,
@@ -37,6 +42,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [staffList, setStaffList] = useState<any[]>([]);
+  const [companies, setCompanies] = useState<any[]>([]);
   const [authReady, setAuthReady] = useState(false);
   const router = useRouter();
   const PROTECTED = ['/submissions', '/upload', '/directory', '/admin'];
@@ -78,6 +84,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }));
         setSubmissions(mapped);
         await fetchStaff();
+        await fetchCompanies();
       } catch (err) {
         console.error(err);
       }
@@ -94,6 +101,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const data = await res.json();
     const list = Array.isArray(data.data) ? data.data : [];
     setStaffList(list);
+  };
+
+  const fetchCompanies = async () => {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/companies/`);
+    const data = await res.json();
+    setCompanies(Array.isArray(data.data) ? data.data : []);
   };
 
   const login = async (email: string, password: string, selectedRole: Role) => {
@@ -144,12 +157,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
         // Role based redirect
         if (backendRole === "admin") {
-          router.push("/submissions"); // admin - same submissions page, approve/reject buttons auto show thase
+          router.push("/submissions");
         } else {
-          router.push("/submissions"); // staff - same page, limited view
+          router.push("/submissions");
         }
       } else {
-        alert("Login failed: " + result.message);
+        toast.error(result.message || "Invalid email or password");
       }
     } catch (err) {
       console.error("Login error:", err);
@@ -170,22 +183,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
   try {
     const token = localStorage.getItem("token");
     if (!token) {
-      alert("Please login first");
+      toast.error("Please login first");
       router.push("/");
       return;
     }
 
+    const formData = new FormData();
+    formData.append("title", data.title);
+    formData.append("description", data.description || "");
+    formData.append("fileLink", data.link || "");
+    formData.append("company", data.company || "");
+    if (data.atFile) formData.append("atFile", data.atFile);
+
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/submissions/create`, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({
-        title: data.title,
-        description: data.description,
-        fileLink: data.link,
-      }),
+      body: formData,
     });
 
     const result = await res.json();
@@ -206,13 +221,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setSubmissions((prev) => [mapped, ...prev]); // ✅ list ma add thase
       router.push("/submissions"); // ✅ submit pachhi redirect
     } else {
-      alert("Submission failed: " + result.message);
+      toast.error(result.message || "Submission failed");
     }
   } catch (err) {
     console.error(err);
-    alert("Something went wrong!");
+    toast.error("Something went wrong!");
   }
 };
+  const postToSocial = async (id: string) => {
+    const token = localStorage.getItem("token");
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/submissions/${id}/post-social`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const result = await res.json();
+    if (result.success) {
+      setSubmissions((prev) =>
+        prev.map((s) => s.id === id ? { ...s, postedToSocial: true, socialPostedAt: result.data.socialPostedAt } : s)
+      );
+    } else {
+      toast.error(result.message || "Failed to post");
+    }
+  };
+
   const updateStatus = async (
     id: string,
     status: SubmissionStatus,
@@ -257,6 +288,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const addCompany = async (name: string) => {
+    const token = localStorage.getItem("token");
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/companies/create`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ name }),
+    });
+    const result = await res.json();
+    if (result.success) await fetchCompanies();
+    else toast.error(result.message);
+  };
+
+  const deleteCompany = async (id: string) => {
+    const token = localStorage.getItem("token");
+    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/companies/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    await fetchCompanies();
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -264,10 +316,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
         user,
         submissions,
         staffList,
+        companies,
         login,
         logout,
         addSubmission,
         addStaff,
+        addCompany,
+        deleteCompany,
+        postToSocial,
         updateStatus,
         searchQuery,
         setSearchQuery,

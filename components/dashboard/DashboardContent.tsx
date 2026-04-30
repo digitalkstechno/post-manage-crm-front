@@ -16,6 +16,7 @@ import {
   MoreVertical,
   Check,
   X,
+  Share2,
 } from "lucide-react";
 import { Submission, Role, SubmissionStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -27,6 +28,7 @@ interface DashboardContentProps {
   activeTab: string;
   submissions: Submission[];
   searchQuery?: string;
+  companies?: any[];
   addSubmission: (
     s: Omit<
       Submission,
@@ -38,6 +40,7 @@ interface DashboardContentProps {
     status: SubmissionStatus,
     comment?: string,
   ) => void;
+  postToSocial?: (id: string) => Promise<void>;
 }
 
 export default function DashboardContent({
@@ -45,24 +48,29 @@ export default function DashboardContent({
   activeTab,
   submissions,
   searchQuery = "",
+  companies = [],
   addSubmission,
   updateStatus,
+  postToSocial,
 }: DashboardContentProps) {
   const [showRejectModal, setShowRejectModal] = useState<string | null>(null);
   const [rejectComment, setRejectComment] = useState("");
+  const [socialModal, setSocialModal] = useState<Submission | null>(null);
+  const [posting, setPosting] = useState(false);
 
   // Local state for the upload form
   const [formData, setFormData] = useState({
     title: "",
     description: "",
     link: "",
+    company: "",
   });
 
   const handleUploadSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.title || !formData.link) return;
     addSubmission(formData);
-    setFormData({ title: "", description: "", link: "" });
+    setFormData({ title: "", description: "", link: "", company: "" });
   };
 
   const getStatusColor = (status: SubmissionStatus) => {
@@ -172,6 +180,7 @@ export default function DashboardContent({
                 getStatusColor={getStatusColor}
                 onApprove={(id) => updateStatus(id, "approved")}
                 onRejectInitiate={(id) => setShowRejectModal(id)}
+                onPostSocial={role === "admin" ? setSocialModal : undefined}
               />
             </div>
 
@@ -264,6 +273,7 @@ export default function DashboardContent({
                 getStatusColor={getStatusColor}
                 onApprove={(id) => updateStatus(id, "approved")}
                 onRejectInitiate={(id) => setShowRejectModal(id)}
+                onPostSocial={role === "admin" ? setSocialModal : undefined}
               />
             </div>
           </motion.div>
@@ -302,9 +312,10 @@ export default function DashboardContent({
                       required
                     />
                   </div>
+                  
                   <div className="col-span-2 space-y-2">
                     <label className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">
-                      Drive / File Link
+                      Drive Link
                     </label>
                     <input
                       type="url"
@@ -404,6 +415,80 @@ export default function DashboardContent({
           </motion.div>
         </div>
       )}
+
+      {/* Social Media Post Modal */}
+      {socialModal && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[60] flex items-center justify-center p-6">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white w-full max-w-md rounded-3xl shadow-2xl border border-slate-100 p-8"
+          >
+            <div className="flex justify-between items-center mb-6">
+              <div className="flex items-center gap-3">
+                <div className="bg-blue-50 p-2 rounded-xl">
+                  <Share2 className="text-blue-600" size={20} />
+                </div>
+                <h3 className="text-xl font-bold text-slate-800 tracking-tight">Post to Social Media</h3>
+              </div>
+              <button onClick={() => setSocialModal(null)} className="p-2 hover:bg-slate-50 rounded-full text-slate-400 transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="bg-slate-50 rounded-2xl p-4 mb-6">
+              <p className="text-xs font-black uppercase tracking-widest text-slate-400 mb-1">Submission</p>
+              <p className="font-bold text-slate-800">{socialModal.title}</p>
+              {socialModal.description && (
+                <p className="text-sm text-slate-500 mt-1">{socialModal.description}</p>
+              )}
+              {socialModal.link && (
+                <a href={socialModal.link} target="_blank" rel="noreferrer" className="text-xs text-blue-500 hover:underline mt-1 inline-block">
+                  View Link
+                </a>
+              )}
+            </div>
+
+            {socialModal.postedToSocial ? (
+              <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-100 rounded-xl p-4 mb-6">
+                <CheckCircle2 className="text-emerald-500" size={18} />
+                <div>
+                  <p className="text-sm font-bold text-emerald-700">Already Posted</p>
+                  {socialModal.socialPostedAt && (
+                    <p className="text-xs text-emerald-600">
+                      {new Date(socialModal.socialPostedAt).toLocaleString()}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <p className="text-slate-500 text-sm mb-6">This will mark the submission as posted to social media.</p>
+            )}
+
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setSocialModal(null)} className="px-6 py-2.5 text-sm font-semibold text-slate-500 hover:text-slate-800">
+                Cancel
+              </button>
+              {!socialModal.postedToSocial && (
+                <button
+                  disabled={posting}
+                  onClick={async () => {
+                    if (!postToSocial) return;
+                    setPosting(true);
+                    await postToSocial(socialModal.id);
+                    setPosting(false);
+                    setSocialModal(null);
+                  }}
+                  className="px-8 py-2.5 bg-blue-600 text-white font-bold rounded-xl active:scale-95 transition-all shadow-lg shadow-blue-600/20 disabled:opacity-50 flex items-center gap-2"
+                >
+                  {posting ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Share2 size={16} />}
+                  Post Now
+                </button>
+              )}
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }
@@ -459,12 +544,14 @@ function SubmissionTable({
   getStatusColor,
   onApprove,
   onRejectInitiate,
+  onPostSocial,
 }: {
   submissions: Submission[];
   role: Role;
   getStatusColor: (s: SubmissionStatus) => string;
   onApprove: (id: string) => void;
   onRejectInitiate: (id: string) => void;
+  onPostSocial?: (s: Submission) => void;
 }) {
   const [commentPopup, setCommentPopup] = React.useState<Submission | null>(
     null,
@@ -581,6 +668,20 @@ function SubmissionTable({
                           >
                             <ExternalLink size={16} />
                           </a>
+                        )}
+                        {role === "admin" && s.status === "approved" && onPostSocial && (
+                          <button
+                            onClick={() => onPostSocial(s)}
+                            title={s.postedToSocial ? "Already posted" : "Post to Social Media"}
+                            className={cn(
+                              "p-1.5 rounded-lg transition-all border",
+                              s.postedToSocial
+                                ? "bg-emerald-50 text-emerald-500 border-emerald-100 cursor-default"
+                                : "bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-100"
+                            )}
+                          >
+                            <Share2 size={16} />
+                          </button>
                         )}
                         {s.status === "rejected" && (
                           <button
