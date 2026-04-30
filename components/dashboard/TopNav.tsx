@@ -58,7 +58,7 @@ export default function TopNav({
               {user?.name}
             </p>
             <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1">
-              {user?.role}
+              {typeof user?.role === 'string' ? user.role : ''}
             </p>
           
           <div

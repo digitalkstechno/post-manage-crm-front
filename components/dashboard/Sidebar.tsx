@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { FileText, Users, LogOut, PlusCircle, ShieldCheck } from "lucide-react";
+import { FileText, Users, LogOut, PlusCircle, ShieldCheck, Building2 } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -31,6 +31,13 @@ export default function Sidebar({ currentRole, onLogout }: SidebarProps) {
       roles: ["admin"],
       href: "/directory",
     },
+    {
+      id: "companies",
+      label: "Companies",
+      icon: Building2,
+      roles: ["admin"],
+      href: "/companies",
+    },
   ];
 
   const filteredItems = menuItems.filter((item) =>
@@ -45,7 +52,7 @@ export default function Sidebar({ currentRole, onLogout }: SidebarProps) {
         </div>
         <div>
           <h1 className="font-extrabold text-lg text-slate-800 tracking-tight leading-none uppercase">
-            StaffCore
+            SMM
           </h1>
           <p className="text-[9px] text-slate-400 font-black uppercase tracking-[0.2em] mt-1">
             Enterprise AI

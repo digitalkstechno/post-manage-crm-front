@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { Submission, Role, SubmissionStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { useApp } from "@/lib/context";
 import Link from "next/link";
 import { PlusCircle } from "lucide-react";
 
@@ -38,6 +39,7 @@ interface DashboardContentProps {
     status: SubmissionStatus,
     comment?: string,
   ) => void;
+  resubmit?: (id: string, fileLink: string) => Promise<void>;
 }
 
 export default function DashboardContent({
@@ -47,22 +49,39 @@ export default function DashboardContent({
   searchQuery = "",
   addSubmission,
   updateStatus,
+  resubmit,
 }: DashboardContentProps) {
+  const { companies } = useApp();
   const [showRejectModal, setShowRejectModal] = useState<string | null>(null);
   const [rejectComment, setRejectComment] = useState("");
+  const [reworkModal, setReworkModal] = useState<Submission | null>(null);
+  const [reworkLink, setReworkLink] = useState("");
+  const [activeFilter, setActiveFilter] = useState<string>("all");
 
   // Local state for the upload form
   const [formData, setFormData] = useState({
     title: "",
     description: "",
     link: "",
+    company: "",
+    uploadAt: "",
   });
+
+  const nowLocal = () => {
+    const now = new Date();
+    now.setSeconds(0, 0);
+    return now.toISOString().slice(0, 16);
+  };
 
   const handleUploadSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.title || !formData.link) return;
+    if (formData.uploadAt && new Date(formData.uploadAt) < new Date()) {
+      alert("Upload date cannot be in the past.");
+      return;
+    }
     addSubmission(formData);
-    setFormData({ title: "", description: "", link: "" });
+    setFormData({ title: "", description: "", link: "", company: "", uploadAt: "" });
   };
 
   const getStatusColor = (status: SubmissionStatus) => {
@@ -71,6 +90,8 @@ export default function DashboardContent({
         return "bg-emerald-50 text-emerald-700 border-emerald-100";
       case "rejected":
         return "bg-rose-50 text-rose-700 border-rose-100";
+      case "rework":
+        return "bg-violet-50 text-violet-700 border-violet-100";
       default:
         return "bg-amber-50 text-amber-700 border-amber-100";
     }
@@ -78,30 +99,39 @@ export default function DashboardContent({
 
   const personalSubmissions = submissions.filter((s) => true); // In a real app, filter by user email
 
-  const filteredSubmissions = submissions.filter(
-    (s) =>
+  const filteredSubmissions = submissions.filter((s) => {
+    // Search filter
+    const matchesSearch =
       s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.staffName.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
+      s.staffName.toLowerCase().includes(searchQuery.toLowerCase());
+
+    // Status filter
+    const matchesFilter = activeFilter === "all" || s.status === activeFilter;
+
+    return matchesSearch && matchesFilter;
+  });
 
   const stats = {
-    total: filteredSubmissions.length,
-    pending: filteredSubmissions.filter((s) => s.status === "pending").length,
-    approved: filteredSubmissions.filter((s) => s.status === "approved").length,
-    rejected: filteredSubmissions.filter((s) => s.status === "rejected").length,
+    total: submissions.length,
+    pending: submissions.filter((s) => s.status === "pending").length,
+    approved: submissions.filter((s) => s.status === "approved").length,
+    rejected: submissions.filter((s) => s.status === "rejected").length,
+    rework: submissions.filter((s) => s.status === "rework").length,
   };
 
   return (
     <div className="p-8 pb-20 max-w-7xl mx-auto space-y-8">
       {/* Stats Section */}
       {(activeTab === "overview" || activeTab === "submissions") && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
           <StatCard
             label="Total Submissions"
             value={stats.total}
             icon={FileText}
             trend="+12% ↑"
             color="blue"
+            active={activeFilter === "all"}
+            onClick={() => setActiveFilter("all")}
           />
           <StatCard
             label="Pending Requests"
@@ -109,6 +139,8 @@ export default function DashboardContent({
             icon={Clock}
             trend="Action Req"
             color="amber"
+            active={activeFilter === "pending"}
+            onClick={() => setActiveFilter("pending")}
           />
           <StatCard
             label="Total Approved"
@@ -116,6 +148,8 @@ export default function DashboardContent({
             icon={CheckCircle2}
             trend="93% Rate"
             color="emerald"
+            active={activeFilter === "approved"}
+            onClick={() => setActiveFilter("approved")}
           />
           <StatCard
             label="Total Rejected"
@@ -123,6 +157,17 @@ export default function DashboardContent({
             icon={XCircle}
             trend="Manual Rev."
             color="rose"
+            active={activeFilter === "rejected"}
+            onClick={() => setActiveFilter("rejected")}
+          />
+          <StatCard
+            label="Rework"
+            value={stats.rework}
+            icon={MessageSquare}
+            trend="In Review"
+            color="violet"
+            active={activeFilter === "rework"}
+            onClick={() => setActiveFilter("rework")}
           />
         </div>
       )}
@@ -172,6 +217,8 @@ export default function DashboardContent({
                 getStatusColor={getStatusColor}
                 onApprove={(id) => updateStatus(id, "approved")}
                 onRejectInitiate={(id) => setShowRejectModal(id)}
+                onReworkInitiate={() => {}}
+                onResubmitInitiate={(s) => { setReworkModal(s); setReworkLink(s.link); }}
               />
             </div>
 
@@ -264,6 +311,8 @@ export default function DashboardContent({
                 getStatusColor={getStatusColor}
                 onApprove={(id) => updateStatus(id, "approved")}
                 onRejectInitiate={(id) => setShowRejectModal(id)}
+                onReworkInitiate={() => {}}
+                onResubmitInitiate={(s) => { setReworkModal(s); setReworkLink(s.link); }}
               />
             </div>
           </motion.div>
@@ -309,12 +358,37 @@ export default function DashboardContent({
                     <input
                       type="url"
                       value={formData.link}
-                      onChange={(e) =>
-                        setFormData({ ...formData, link: e.target.value })
-                      }
+                      onChange={(e) => setFormData({ ...formData, link: e.target.value })}
                       placeholder="https://drive.google.com/..."
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-700 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-primary/5 focus:border-primary transition-all"
                       required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">
+                      Company
+                    </label>
+                    <select
+                      value={formData.company}
+                      onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/5 focus:border-primary transition-all"
+                    >
+                      <option value="">Select Company</option>
+                      {companies.map((c) => (
+                        <option key={c.id} value={c.name}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">
+                      Upload At
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={formData.uploadAt}
+                      min={nowLocal()}
+                      onChange={(e) => setFormData({ ...formData, uploadAt: e.target.value })}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/5 focus:border-primary transition-all"
                     />
                   </div>
                   <div className="col-span-2 space-y-2">
@@ -350,7 +424,7 @@ export default function DashboardContent({
         )}
       </AnimatePresence>
 
-      {/* Reject Modal */}
+      {/* Reject / Rework Modal */}
       {showRejectModal && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[60] flex items-center justify-center p-6">
           <motion.div
@@ -359,22 +433,14 @@ export default function DashboardContent({
             className="bg-white w-full max-w-md rounded-3xl shadow-2xl border border-slate-100 p-8"
           >
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-bold text-slate-800 tracking-tight">
-                Reject Submission
-              </h3>
-              <button
-                onClick={() => setShowRejectModal(null)}
-                className="p-2 hover:bg-slate-50 rounded-full text-slate-400 transition-colors"
-              >
+              <h3 className="text-xl font-bold text-slate-800 tracking-tight">Reject Submission</h3>
+              <button onClick={() => { setShowRejectModal(null); setRejectComment(""); }} className="p-2 hover:bg-slate-50 rounded-full text-slate-400 transition-colors">
                 <X size={20} />
               </button>
             </div>
-
             <p className="text-slate-500 text-sm mb-6">
-              Provide a reason for the rejection. This feedback will be visible
-              to the staff member.
+              Add a comment and choose to reject or request a rework.
             </p>
-
             <textarea
               value={rejectComment}
               onChange={(e) => setRejectComment(e.target.value)}
@@ -382,13 +448,22 @@ export default function DashboardContent({
               rows={4}
               className="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/10 focus:border-rose-500 transition-all resize-none mb-6"
             />
-
             <div className="flex gap-3 justify-end">
               <button
-                onClick={() => setShowRejectModal(null)}
+                onClick={() => { setShowRejectModal(null); setRejectComment(""); }}
                 className="px-6 py-2.5 text-sm font-semibold text-slate-500 hover:text-slate-800"
               >
                 Cancel
+              </button>
+              <button
+                onClick={() => {
+                  updateStatus(showRejectModal, "rework", rejectComment);
+                  setShowRejectModal(null);
+                  setRejectComment("");
+                }}
+                className="px-6 py-2.5 bg-violet-600 text-white font-bold rounded-xl active:scale-95 transition-all shadow-lg shadow-violet-600/20 text-sm"
+              >
+                Request Rework
               </button>
               <button
                 onClick={() => {
@@ -396,14 +471,62 @@ export default function DashboardContent({
                   setShowRejectModal(null);
                   setRejectComment("");
                 }}
-                className="px-8 py-2.5 bg-rose-600 text-white font-bold rounded-xl active:scale-95 transition-all shadow-lg shadow-rose-600/20"
+                className="px-6 py-2.5 bg-rose-600 text-white font-bold rounded-xl active:scale-95 transition-all shadow-lg shadow-rose-600/20 text-sm"
               >
-                Reject Now
+                Reject
               </button>
             </div>
           </motion.div>
         </div>
       )}
+
+      {/* Rework Resubmit Modal (staff) */}
+      <AnimatePresence>
+        {reworkModal && (
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[60] flex items-center justify-center p-6">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white w-full max-w-md rounded-3xl shadow-2xl border border-slate-100 p-8"
+            >
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-bold text-slate-800">Resubmit — {reworkModal.title}</h3>
+                <button onClick={() => setReworkModal(null)} className="p-2 hover:bg-slate-50 rounded-full text-slate-400 transition-colors">
+                  <X size={20} />
+                </button>
+              </div>
+              {reworkModal.adminComment && (
+                <div className="bg-violet-50 border border-violet-100 rounded-xl p-3 mb-4">
+                  <p className="text-[10px] font-black text-violet-400 uppercase tracking-widest mb-1">Admin Note</p>
+                  <p className="text-sm text-violet-700">{reworkModal.adminComment}</p>
+                </div>
+              )}
+              <label className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">Updated Drive / File Link</label>
+              <input
+                type="url"
+                value={reworkLink}
+                onChange={(e) => setReworkLink(e.target.value)}
+                placeholder="https://drive.google.com/..."
+                className="w-full mt-2 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-700 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-primary/5 focus:border-primary transition-all text-sm mb-6"
+              />
+              <div className="flex gap-3 justify-end">
+                <button onClick={() => setReworkModal(null)} className="px-6 py-2.5 text-sm font-semibold text-slate-500 hover:text-slate-800">Cancel</button>
+                <button
+                  onClick={async () => {
+                    if (!reworkLink.trim()) return;
+                    await resubmit?.(reworkModal.id, reworkLink);
+                    setReworkModal(null);
+                  }}
+                  className="px-8 py-2.5 bg-primary text-white font-bold rounded-xl active:scale-95 transition-all shadow-lg shadow-primary/20"
+                >
+                  Resubmit
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -414,22 +537,41 @@ function StatCard({
   icon: Icon,
   trend,
   color,
+  active,
+  onClick,
 }: {
   label: string;
   value: number;
   icon: any;
   trend: string;
   color: string;
+  active?: boolean;
+  onClick?: () => void;
 }) {
   const colors: Record<string, string> = {
     blue: "bg-blue-50 text-blue-600",
     amber: "bg-amber-50 text-amber-600",
     emerald: "bg-emerald-50 text-emerald-600",
     rose: "bg-rose-50 text-rose-600",
+    violet: "bg-violet-50 text-violet-600",
+  };
+
+  const borderColors: Record<string, string> = {
+    blue: "border-blue-300",
+    amber: "border-amber-300",
+    emerald: "border-emerald-300",
+    rose: "border-rose-300",
+    violet: "border-violet-300",
   };
 
   return (
-    <div className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-slate-200 shadow-sm transition-all hover:shadow-md hover:translate-y-[-2px]">
+    <div
+      onClick={onClick}
+      className={cn(
+        "bg-white/80 backdrop-blur-sm p-6 rounded-2xl border shadow-sm transition-all hover:shadow-md hover:translate-y-[-2px] cursor-pointer",
+        active ? `${borderColors[color]} shadow-md` : "border-slate-200",
+      )}
+    >
       <div className="flex justify-between items-start mb-4">
         <div className={cn("p-2.5 rounded-xl", colors[color])}>
           <Icon size={20} />
@@ -452,23 +594,32 @@ function StatCard({
     </div>
   );
 }
-
 function SubmissionTable({
   submissions,
   role,
   getStatusColor,
   onApprove,
   onRejectInitiate,
+  onReworkInitiate,
+  onResubmitInitiate,
 }: {
   submissions: Submission[];
   role: Role;
   getStatusColor: (s: SubmissionStatus) => string;
   onApprove: (id: string) => void;
   onRejectInitiate: (id: string) => void;
+  onReworkInitiate: (id: string) => void;
+  onResubmitInitiate: (s: Submission) => void;
 }) {
-  const [commentPopup, setCommentPopup] = React.useState<Submission | null>(
-    null,
-  );
+  const PAGE_SIZE = 10;
+  const [page, setPage] = React.useState(1);
+  const [commentPopup, setCommentPopup] = React.useState<Submission | null>(null);
+
+  // Reset to page 1 when submissions list changes (filter/search)
+  React.useEffect(() => { setPage(1); }, [submissions.length]);
+
+  const totalPages = Math.max(1, Math.ceil(submissions.length / PAGE_SIZE));
+  const paged = submissions.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-left border-collapse table-fixed">
@@ -486,6 +637,12 @@ function SubmissionTable({
               Submitted At
             </th>
             <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+              Upload At
+            </th>
+            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+              Company
+            </th>
+            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
               Status
             </th>
             <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">
@@ -496,12 +653,12 @@ function SubmissionTable({
         <tbody className="divide-y divide-slate-50">
           {submissions.length === 0 ? (
             <tr>
-              <td colSpan={6} className="px-6 py-20 text-center text-slate-400">
+              <td colSpan={7} className="px-6 py-20 text-center text-slate-400">
                 No submissions found.
               </td>
             </tr>
           ) : (
-            submissions.map((s) => (
+            paged.map((s) => (
               <tr
                 key={s.id}
                 className="group hover:bg-slate-50/50 transition-colors"
@@ -519,7 +676,6 @@ function SubmissionTable({
                 {role === "admin" && (
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
-                      
                       <span className="text-sm font-semibold text-slate-600">
                         {s.staffName}
                       </span>
@@ -532,6 +688,22 @@ function SubmissionTable({
                     day: "numeric",
                     year: "numeric",
                   })}
+                </td>
+                <td className="px-6 py-4 text-sm text-slate-500">
+                  {s.uploadAt
+                    ? new Date(s.uploadAt).toLocaleString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    : <span className="text-slate-300">—</span>}
+                </td>
+                <td className="px-6 py-4">
+                  <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg">
+                    {s.companyName || s.company || "—"}
+                  </span>
                 </td>
                 <td className="px-6 py-4">
                   <span
@@ -547,7 +719,9 @@ function SubmissionTable({
                           ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"
                           : s.status === "rejected"
                             ? "bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]"
-                            : "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]",
+                            : s.status === "rework"
+                              ? "bg-violet-500 shadow-[0_0_8px_rgba(139,92,246,0.5)]"
+                              : "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]",
                       )}
                     />
                     {s.status}
@@ -555,41 +729,81 @@ function SubmissionTable({
                 </td>
                 <td className="px-6 py-4 text-right">
                   <div className="flex justify-end gap-2 items-center">
-                    {role === "admin" && s.status === "pending" ? (
+                    {role === "admin" && (s.status === "pending" || s.status === "rework") ? (
                       <>
                         <button
                           onClick={() => onApprove(s.id)}
                           className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-all border border-emerald-100"
+                          title="Approve"
                         >
                           <Check size={16} />
                         </button>
                         <button
                           onClick={() => onRejectInitiate(s.id)}
                           className="p-1.5 bg-rose-50 text-rose-600 rounded-lg hover:bg-rose-100 transition-all border border-rose-100"
+                          title="Reject / Rework"
                         >
                           <X size={16} />
                         </button>
-                      </>
-                    ) : (
-                      <div className="flex justify-end gap-2 items-center">
                         {s.link && (
-                          <a
-                            href={s.link}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="p-1.5 text-slate-400 hover:text-primary transition-colors"
-                          >
+                          <a href={s.link} target="_blank" rel="noreferrer" className="p-1.5 text-slate-400 hover:text-primary transition-colors">
                             <ExternalLink size={16} />
                           </a>
                         )}
-                        {s.status === "rejected" && (
+                      </>
+                    ) : role === "admin" && s.status === "rejected" ? (
+                      <div className="flex justify-end gap-2 items-center">
+                        <button
+                          onClick={() => setCommentPopup(s)}
+                          className="p-1.5 text-rose-400 hover:text-rose-600 transition-colors"
+                          title="View rejection reason"
+                        >
+                          <MessageSquare size={16} />
+                        </button>
+                        <button
+                          onClick={() => onRejectInitiate(s.id)}
+                          className="px-2 py-1.5 bg-violet-50 text-violet-600 rounded-lg hover:bg-violet-100 transition-all border border-violet-100 text-[10px] font-black uppercase tracking-widest"
+                          title="Request Rework"
+                        >
+                          Rework
+                        </button>
+                        {s.link && (
+                          <a href={s.link} target="_blank" rel="noreferrer" className="p-1.5 text-slate-400 hover:text-primary transition-colors">
+                            <ExternalLink size={16} />
+                          </a>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="flex justify-end gap-2 items-center">
+                        {(s.status === "rejected" || s.status === "rework") && (
                           <button
                             onClick={() => setCommentPopup(s)}
-                            className="p-1.5 text-rose-400 hover:text-rose-600 transition-colors"
-                            title="View rejection reason"
+                            className={cn("p-1.5 transition-colors", s.status === "rework" ? "text-violet-400 hover:text-violet-600" : "text-rose-400 hover:text-rose-600")}
+                            title="View admin note"
                           >
                             <MessageSquare size={16} />
                           </button>
+                        )}
+                        {s.status === "rejected" && role === "staff" && (
+                          <button
+                            onClick={() => onResubmitInitiate(s)}
+                            className="px-3 py-1.5 bg-violet-600 text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-violet-700 transition-all"
+                          >
+                            Rework
+                          </button>
+                        )}
+                        {s.status === "rework" && role === "staff" && (
+                          <button
+                            onClick={() => onResubmitInitiate(s)}
+                            className="px-3 py-1.5 bg-violet-600 text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-violet-700 transition-all"
+                          >
+                            Rework
+                          </button>
+                        )}
+                        {s.link && s.status !== "rework" && (
+                          <a href={s.link} target="_blank" rel="noreferrer" className="p-1.5 text-slate-400 hover:text-primary transition-colors">
+                            <ExternalLink size={16} />
+                          </a>
                         )}
                       </div>
                     )}
@@ -639,18 +853,18 @@ function SubmissionTable({
         )}
       </AnimatePresence>
 
-      <div className="p-6 bg-slate-50/30 border-t border-slate-100 flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-        <span>Showing {submissions.length} results</span>
-        <div className="flex gap-2">
+      <div className="p-6 bg-slate-50/30 border-t border-slate-100 flex justify-end items-center text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+        <div className="flex items-center gap-2">
           <button
-            className="px-3 py-1 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-30"
-            disabled
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            className="px-3 py-1 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
           >
             Prev
           </button>
+          <span className="text-slate-500">{page} / {totalPages}</span>
           <button
-            className="px-3 py-1 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-30"
-            disabled
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            className="px-3 py-1 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
           >
             Next
           </button>

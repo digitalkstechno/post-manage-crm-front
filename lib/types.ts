@@ -1,6 +1,11 @@
 export type Role = 'admin' | 'staff' | null;
 
-export type SubmissionStatus = 'pending' | 'approved' | 'rejected';
+export type SubmissionStatus = 'pending' | 'approved' | 'rejected' | 'rework';
+
+export interface Company {
+  id: string;
+  name: string;
+}
 
 export interface Submission {
   id: string;
@@ -9,6 +14,9 @@ export interface Submission {
   title: string;
   description: string;
   link: string;
+  company?: string;
+  companyName?: string;
+  uploadAt?: string;
   status: SubmissionStatus;
   createdAt: string;
   adminComment?: string;

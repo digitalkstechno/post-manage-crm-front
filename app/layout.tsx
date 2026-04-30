@@ -9,7 +9,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'StaffCore Pro | Enterprise Management',
+  title: 'SMM Pro | Enterprise Management',
   description: 'Enterprise Role-Based Management System',
 };
 

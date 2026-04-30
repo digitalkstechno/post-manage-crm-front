@@ -7,7 +7,7 @@ import React, {
   useState,
   ReactNode,
 } from "react";
-import { Role, User, Submission, SubmissionStatus } from "@/lib/types";
+import { Role, User, Submission, SubmissionStatus, Company } from "@/lib/types";
 import { useRouter } from "next/navigation";
 
 interface AppContextType {
@@ -15,6 +15,7 @@ interface AppContextType {
   user: User | null;
   submissions: Submission[];
   staffList: any[];
+  companies: Company[];
   searchQuery: string;
   authReady: boolean;
   setSearchQuery: (q: string) => void;
@@ -22,6 +23,9 @@ interface AppContextType {
   logout: () => void;
   addSubmission: (data: any) => Promise<void>;
   addStaff: (data: any) => Promise<void>;
+  addCompany: (name: string) => Promise<void>;
+  deleteCompany: (id: string) => Promise<void>;
+  resubmit: (id: string, fileLink: string) => Promise<void>;
   updateStatus: (
     id: string,
     status: SubmissionStatus,
@@ -37,9 +41,33 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [staffList, setStaffList] = useState<any[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
   const [authReady, setAuthReady] = useState(false);
   const router = useRouter();
-  const PROTECTED = ['/submissions', '/upload', '/directory', '/admin'];
+  const PROTECTED = ['/submissions', '/upload', '/directory', '/admin', '/companies'];
+
+  const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001/api";
+
+  const fetchStaff = async () => {
+    const token = localStorage.getItem("token");
+    const res = await fetch(`${API}/staff/`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    const data = await res.json();
+    const list = Array.isArray(data.data) ? data.data : [];
+    setStaffList(list);
+  };
+
+  const fetchCompanies = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    const res = await fetch(`${API}/companies`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json();
+    const list = Array.isArray(data.data) ? data.data : [];
+    setCompanies(list.map((c: any) => ({ id: c._id, name: c.name })));
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -70,6 +98,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
           title: s.title,
           description: s.description,
           link: s.fileLink,
+          company: s.company?.name || s.company || "",
+          companyName: s.company?.name || s.company || "",
+          uploadAt: s.uploadAt || "",
           status: s.status.toLowerCase(),
           createdAt: s.createdAt,
           staffName: s.submittedBy?.fullName || "Unknown",
@@ -78,6 +109,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }));
         setSubmissions(mapped);
         await fetchStaff();
+        await fetchCompanies();
       } catch (err) {
         console.error(err);
       }
@@ -106,13 +138,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const result = await res.json();
 
       if (result.status === "Success") {
-        const backendRole = result.data.role as Role;
+        const backendRole = (typeof result.data.role === 'object' ? result.data.role?.roleName : result.data.role) as Role;
 
         const userData = {
           id: result.data._id,
           name: result.data.fullName,
           email: result.data.email,
-          role: backendRole,
+          role: (typeof result.data.role === 'object' ? result.data.role?.roleName : result.data.role) as Role,
         };
 
         localStorage.setItem("token", result.token);
@@ -133,6 +165,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
             title: s.title,
             description: s.description,
             link: s.fileLink,
+            company: s.company?.name || s.company || "",
+            companyName: s.company?.name || s.company || "",
+            uploadAt: s.uploadAt || "",
             status: s.status.toLowerCase(),
             createdAt: s.createdAt,
             staffName: s.submittedBy?.fullName || "Unknown",
@@ -141,6 +176,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           }));
           setSubmissions(mapped);
         }
+        await fetchCompanies();
 
         // Role based redirect
         if (backendRole === "admin") {
@@ -153,6 +189,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
     } catch (err) {
       console.error("Login error:", err);
+      alert("Cannot connect to server. Please make sure the backend is running.");
     }
   };
 
@@ -185,6 +222,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         title: data.title,
         description: data.description,
         fileLink: data.link,
+        company: data.company || undefined,
+        uploadAt: data.uploadAt || undefined,
       }),
     });
 
@@ -198,6 +237,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         title: s.title,
         description: s.description,
         link: s.fileLink,
+        company: s.company || "",
+        companyName: s.company || "",
+        uploadAt: s.uploadAt || "",
         status: s.status.toLowerCase(),
         createdAt: s.createdAt,
         staffName: s.submittedBy?.fullName || user?.name || "Unknown",
@@ -227,7 +269,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          status: status.toUpperCase(),
+          status: (status as string).toUpperCase(),
           adminComment: comment,
         }),
       });
@@ -239,6 +281,47 @@ export function AppProvider({ children }: { children: ReactNode }) {
         s.id === id ? { ...s, status, adminComment: comment } : s,
       ),
     );
+  };
+
+  const resubmit = async (id: string, fileLink: string) => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API}/submissions/${id}/resubmit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ fileLink }),
+      });
+      const result = await res.json();
+      if (result.success && result.data) {
+        const s = result.data;
+        setSubmissions((prev) => prev.map((sub) =>
+          sub.id === id ? { ...sub, link: s.fileLink, status: "pending", adminComment: "" } : sub
+        ));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const addCompany = async (name: string) => {
+    const token = localStorage.getItem("token");
+    const res = await fetch(`${API}/companies/create`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ name }),
+    });
+    const result = await res.json();
+    if (result.success) await fetchCompanies();
+    else alert(result.message);
+  };
+
+  const deleteCompany = async (id: string) => {
+    const token = localStorage.getItem("token");
+    await fetch(`${API}/companies/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    setCompanies((prev) => prev.filter((c) => c.id !== id));
   };
 
   const addStaff = async (data: any) => {
@@ -260,18 +343,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   return (
     <AppContext.Provider
       value={{
-        role,
-        user,
-        submissions,
-        staffList,
-        login,
-        logout,
-        addSubmission,
-        addStaff,
-        updateStatus,
-        searchQuery,
-        setSearchQuery,
-        authReady,
+        role, user, submissions, staffList, companies,
+        login, logout, addSubmission, addStaff, addCompany, deleteCompany,
+        resubmit, updateStatus, searchQuery, setSearchQuery, authReady,
       }}
     >
       {children}
