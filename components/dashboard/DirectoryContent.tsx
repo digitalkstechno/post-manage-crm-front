@@ -91,7 +91,7 @@ export default function DirectoryContent() {
       email: member.email,
       password: "", // Keep empty for no change
       role: member.role,
-      assignedCompanies: member.assignedCompanies.map((c: any) => c._id || c),
+      assignedCompanies: member.assignedCompanies?.map((c: any) => c._id || c) || [],
     });
     setShowModal(true);
   };

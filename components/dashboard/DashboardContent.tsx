@@ -103,7 +103,7 @@ export default function DashboardContent({
       header: "Company",
       accessor: (s: Post) => (
         <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg">
-          {s.company || "N/A"}
+          {s.companyName || "N/A"}
         </span>
       )
     },
@@ -295,6 +295,7 @@ export default function DashboardContent({
               data={posts.slice(0, 5)}
               isLoading={isLoading}
               hidePagination
+              hideSearch
               emptyMessage="No recent activity."
             />
           </motion.div>

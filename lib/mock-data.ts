@@ -1,3 +1,3 @@
-import { Submission } from "./types";
+import { Post } from "./types";
 
-export const INITIAL_SUBMISSIONS: Submission[] = [];
+export const INITIAL_SUBMISSIONS: Post[] = [];

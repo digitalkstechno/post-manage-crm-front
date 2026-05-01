@@ -6,7 +6,7 @@ import DirectoryContent from '@/components/dashboard/DirectoryContent';
 import { useApp } from '@/lib/context';
 
 export default function DirectoryPage() {
-  const { submissions, searchQuery, fetchStaff } = useApp();
+  const { fetchStaff } = useApp();
 
   React.useEffect(() => {
     fetchStaff(1, 10);
@@ -14,7 +14,7 @@ export default function DirectoryPage() {
 
   return (
     <DashboardLayoutWrapper>
-      <DirectoryContent searchQuery={searchQuery} submissions={submissions} />
+      <DirectoryContent />
     </DashboardLayoutWrapper>
   );
 }

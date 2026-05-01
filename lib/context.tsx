@@ -50,7 +50,7 @@ interface AppContextType {
   setSearchQuery: (q: string) => void;
   login: (email: string, password: string, role: Role) => Promise<void>;
   logout: () => void;
-  fetchPosts: (page?: number, limit?: number, status?: string) => Promise<void>;
+  fetchPosts: (page?: number, limit?: number, search?: string, status?: string) => Promise<void>;
   fetchPostStats: () => Promise<void>;
   fetchAdminStats: () => Promise<void>;
   fetchStaff: (page?: number, limit?: number, search?: string) => Promise<void>;

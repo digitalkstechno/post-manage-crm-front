@@ -22,6 +22,8 @@ interface CommonTableProps<T> {
   searchPlaceholder?: string;
   emptyMessage?: string;
   rowKey?: (item: T) => string | number;
+  hidePagination?: boolean;
+  hideSearch?: boolean;
 }
 
 export default function CommonTable<T>({
@@ -34,6 +36,8 @@ export default function CommonTable<T>({
   searchPlaceholder = "Search...",
   emptyMessage = "No records found.",
   rowKey = (item: any) => item.id || item._id,
+  hidePagination = false,
+  hideSearch = false,
 }: CommonTableProps<T>) {
   const [searchValue, setSearchValue] = useState("");
 
@@ -55,21 +59,23 @@ export default function CommonTable<T>({
   return (
     <div className="space-y-4">
       {/* Search Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="relative group max-w-md w-full">
-          <Search 
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors" 
-            size={18} 
-          />
-          <input
-            type="text"
-            value={searchValue}
-            onChange={(e) => setSearchValue(e.target.value)}
-            placeholder={searchPlaceholder}
-            className="w-full bg-white border border-slate-200 rounded-2xl pl-12 pr-4 py-3 text-sm text-slate-700 placeholder:text-slate-300 focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all shadow-sm"
-          />
+      {!hideSearch && (
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="relative group max-w-xs w-full">
+            <Search
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-primary transition-colors"
+              size={18}
+            />
+            <input
+              type="text"
+              value={searchValue}
+              onChange={(e) => setSearchValue(e.target.value)}
+              placeholder={searchPlaceholder}
+              className="w-full bg-white border border-slate-200 rounded-2xl pl-11 pr-5 py-3 text-slate-700 placeholder:text-slate-300 focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all text-sm"
+            />
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Table Container */}
       <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden transition-all">
@@ -137,7 +143,7 @@ export default function CommonTable<T>({
         </div>
 
         {/* Pagination Footer */}
-        {pagination && (
+        {!hidePagination && pagination && pagination.pages > 1 && (
           <div className="px-6 py-4 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
               Page {pagination.page} of {pagination.pages} ({pagination.total} total)
