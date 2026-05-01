@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   Users,
@@ -8,84 +8,224 @@ import {
   ShieldCheck,
   User as UserIcon,
   Mail,
-  Building2,
   X,
-  Trash2,
   Lock,
-  MessageSquare,
-  ExternalLink,
+  Building2,
+  Check,
+  ChevronDown,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import { useApp } from "@/lib/context";
-import { StaffMember, Role, Submission } from "@/lib/types";
+import { StaffMember, Role } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import CommonTable from "../common/CommonTable";
+import toast from "react-hot-toast";
 
-interface DirectoryContentProps {
-  searchQuery?: string;
-  submissions?: Submission[];
-}
+export default function DirectoryContent() {
+  const { 
+    staffList: rawStaffList, 
+    staffPagination, 
+    fetchStaff, 
+    addStaff,
+    updateStaff,
+    deleteStaff,
+    isLoading,
+    getCompanyDropdown
+  } = useApp();
 
-export default function DirectoryContent({
-  searchQuery = "",
-  submissions = [],
-}: DirectoryContentProps) {
-  const { staffList: rawStaffList, addStaff } = useApp();
-  const staffList: StaffMember[] = rawStaffList.map((s: any) => ({
-    id: s._id || s.id,
-    name: s.fullName || s.name,
-    email: s.email,
-    role: s.role || "staff",
-    department: s.department || "Engineering",
-    joinedAt: s.createdAt || new Date().toISOString(),
-  }));
+  const [availableCompanies, setAvailableCompanies] = useState<any[]>([]);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    getCompanyDropdown().then(setAvailableCompanies);
+  }, [getCompanyDropdown]);
+
+  const staffList: StaffMember[] = useMemo(() => {
+    return rawStaffList.map((s: any) => ({
+      id: s._id || s.id,
+      name: s.fullName || s.name,
+      email: s.email,
+      role: s.role || "staff",
+      joinedAt: s.createdAt || new Date().toISOString(),
+      assignedCompanies: s.assignedCompanies || [],
+    }));
+  }, [rawStaffList]);
+
   const [showModal, setShowModal] = useState(false);
-  const [commentPopup, setCommentPopup] = useState<Submission | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     password: "",
-    department: "Engineering",
     role: "staff" as Role,
+    assignedCompanies: [] as string[],
   });
   const [errors, setErrors] = useState<{
     name?: string;
     email?: string;
     password?: string;
   }>({});
+  const [searchQuery, setSearchQuery] = useState("");
 
-  const handleCreate = async (e: React.FormEvent) => {
+  const toggleCompany = (id: string) => {
+    setFormData(prev => ({
+      ...prev,
+      assignedCompanies: prev.assignedCompanies.includes(id)
+        ? prev.assignedCompanies.filter(c => c !== id)
+        : [...prev.assignedCompanies, id]
+    }));
+  };
+
+  const removeCompany = (id: string) => {
+    setFormData(prev => ({
+      ...prev,
+      assignedCompanies: prev.assignedCompanies.filter(c => c !== id)
+    }));
+  };
+
+  const handleEdit = (member: StaffMember) => {
+    setEditingId(member.id);
+    setFormData({
+      name: member.name,
+      email: member.email,
+      password: "", // Keep empty for no change
+      role: member.role,
+      assignedCompanies: member.assignedCompanies.map((c: any) => c._id || c),
+    });
+    setShowModal(true);
+  };
+
+  const handleDelete = (id: string) => {
+    if (confirm("Are you sure you want to delete this member?")) {
+      deleteStaff(id);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const newErrors: typeof errors = {};
     if (!formData.name.trim()) newErrors.name = "Full name is required";
     if (!formData.email.trim()) newErrors.email = "Email is required";
-    if (!formData.password.trim()) newErrors.password = "Password is required";
+    if (!editingId && !formData.password.trim()) newErrors.password = "Password is required";
+    
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       return;
     }
     setErrors({});
-    await addStaff({
+
+    const payload: any = {
       fullName: formData.name,
       email: formData.email,
-      password: formData.password,
-      role: formData.role === 'admin' ? 'admin' : 'staff',
-    });
+      role: formData.role,
+      assignedCompanies: formData.assignedCompanies,
+    };
+    if (formData.password) payload.password = formData.password;
+
+    if (editingId) {
+      await updateStaff(editingId, payload);
+    } else {
+      await addStaff(payload);
+    }
+
     setShowModal(false);
+    resetForm();
+  };
+
+  const resetForm = () => {
+    setEditingId(null);
     setFormData({
       name: "",
       email: "",
       password: "",
-      department: "Engineering",
       role: "staff",
+      assignedCompanies: [],
     });
   };
 
- 
-  const filtered = staffList.filter(
-    (s) =>
-      s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.department.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
+  const columns = [
+    {
+      header: "Member",
+      accessor: (member: StaffMember) => (
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-black text-sm group-hover:scale-110 transition-transform">
+            {member.name.charAt(0)}
+          </div>
+          <div>
+            <p className="font-bold text-slate-800 text-sm">{member.name}</p>
+            <p className="text-[10px] text-slate-400 font-medium">{member.email}</p>
+          </div>
+        </div>
+      )
+    },
+    {
+      header: "Role",
+      accessor: (member: StaffMember) => (
+        <span
+          className={cn(
+            "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border shadow-sm",
+            member.role === "admin"
+              ? "bg-rose-50 text-rose-700 border-rose-100 shadow-rose-100/20"
+              : member.role === "hr"
+              ? "bg-blue-50 text-blue-700 border-blue-100 shadow-blue-100/20"
+              : "bg-emerald-50 text-emerald-700 border-emerald-100 shadow-emerald-100/20",
+          )}
+        >
+          {member.role === "admin" ? <ShieldCheck size={10} /> : <UserIcon size={10} />}
+          {member.role === "admin" ? "Executive" : member.role === "hr" ? "HR Manager" : "Employee"}
+        </span>
+      )
+    },
+    {
+      header: "Assigned Companies",
+      accessor: (member: StaffMember) => (
+        <div className="flex flex-wrap gap-1 max-w-[200px]">
+          {member.role === 'admin' ? (
+            <span className="text-[10px] font-bold text-slate-400 uppercase italic">All Companies</span>
+          ) : (
+            member.assignedCompanies?.map((c: any) => (
+              <span key={c._id || c} className="text-[9px] font-black uppercase bg-slate-100 text-slate-600 px-2 py-1 rounded-md border border-slate-200">
+                {c.name || "Unknown"}
+              </span>
+            )) || <span className="text-[10px] text-slate-300">None</span>
+          )}
+        </div>
+      )
+    },
+    {
+      header: "Actions",
+      accessor: (member: StaffMember) => (
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => handleEdit(member)}
+            className="p-2 bg-slate-50 text-slate-400 hover:text-primary hover:bg-primary/5 rounded-xl transition-all border border-transparent hover:border-primary/10"
+            title="Edit Member"
+          >
+            <Pencil size={14} />
+          </button>
+          <button
+            onClick={() => handleDelete(member.id)}
+            className="p-2 bg-slate-50 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all border border-transparent hover:border-rose-100"
+            title="Delete Member"
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
+      ),
+      className: "w-24 text-right"
+    }
+  ];
+
+  const handlePageChange = React.useCallback((page: number) => {
+    fetchStaff(page, 10, searchQuery);
+  }, [fetchStaff, searchQuery]);
+
+  const handleSearchChange = React.useCallback((search: string) => {
+    setSearchQuery(search);
+    fetchStaff(1, 10, search);
+  }, [fetchStaff]);
+
 
   return (
     <div className="p-8 pb-20 max-w-7xl mx-auto space-y-8">
@@ -93,7 +233,7 @@ export default function DirectoryContent({
       <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
         <StatCard
           label="Total Staff"
-          value={staffList.length}
+          value={staffPagination?.total || staffList.length}
           color="blue"
           icon={Users}
           trend="All Members"
@@ -106,345 +246,280 @@ export default function DirectoryContent({
           trend="Executive"
         />
         <StatCard
+          label="HR Managers"
+          value={staffList.filter((s) => s.role === "hr").length}
+          color="amber"
+          icon={Users}
+          trend="Management"
+        />
+        <StatCard
           label="Employees"
           value={staffList.filter((s) => s.role === "staff").length}
           color="emerald"
           icon={UserIcon}
           trend="Active"
         />
-        <StatCard
-          label="Departments"
-          value={[...new Set(staffList.map((s) => s.department))].length}
-          color="amber"
-          icon={Building2}
-          trend="Teams"
-        />
       </div>
 
       {/* Header */}
-
-      <div className="flex justify-end">
+      <div className="flex justify-between items-end">
+        <div>
+          <h1 className="text-3xl font-black text-slate-800 tracking-tight">Staff Directory</h1>
+          <p className="text-slate-400 text-sm mt-1">Manage team members and permissions</p>
+        </div>
         <button
-          onClick={() => setShowModal(true)}
-          className="bg-primary text-white font-bold py-2.5 px-5 rounded-xl flex items-center gap-2 hover:opacity-90 transition-all shadow-lg shadow-primary/20 text-sm whitespace-nowrap"
+          onClick={() => { resetForm(); setShowModal(true); }}
+          className="bg-primary text-white font-bold py-3 px-6 rounded-2xl flex items-center gap-2 hover:opacity-90 active:scale-95 transition-all shadow-xl shadow-primary/20 text-sm whitespace-nowrap"
         >
-          <UserPlus size={16} />
+          <UserPlus size={18} />
           Add Staff Member
         </button>
       </div>
 
-      {/* Table */}
-      <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-100">
-                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                  Member
-                </th>
-                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                  Department
-                </th>
-                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                  Role
-                </th>
-                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                  Joined
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {filtered.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={5}
-                    className="px-6 py-20 text-center text-slate-400 text-sm"
-                  >
-                    No staff members found.
-                  </td>
-                </tr>
-              ) : (
-                filtered.map((member) => (
-                  <tr
-                    key={member.id}
-                    className="group hover:bg-slate-50/50 transition-colors"
-                  >
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-black text-sm">
-                          {member.name.charAt(0)}
-                        </div>
-                        <div>
-                          <p className="font-bold text-slate-800 text-sm">
-                            {member.name}
-                          </p>
-                          <p className="text-xs text-slate-400">
-                            {member.email}
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg flex items-center gap-1.5 w-fit">
-                        <Building2 size={12} />
-                        {member.department}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span
-                        className={cn(
-                          "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border",
-                          member.role === "admin"
-                            ? "bg-rose-50 text-rose-700 border-rose-100"
-                            : "bg-emerald-50 text-emerald-700 border-emerald-100",
-                        )}
-                      >
-                        {member.role === "admin" ? (
-                          <ShieldCheck size={10} />
-                        ) : (
-                          <UserIcon size={10} />
-                        )}
-                        {member.role === "admin" ? "Executive" : "Employee"}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-slate-500">
-                      {new Date(member.joinedAt).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      })}
-                    </td>
-                    
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-          <div className="p-6 bg-slate-50/30 border-t border-slate-100 flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-            <span>Showing {filtered.length} results</span>
-          </div>
-        </div>
-      </div>
-      {/* Comment Popup */}
-      <AnimatePresence>
-        {commentPopup && (
-          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[60] flex items-center justify-center p-6">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white w-full max-w-md rounded-3xl shadow-2xl border border-slate-100 p-8"
-            >
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-bold text-slate-800">
-                  Rejection Reason
-                </h3>
-                <button
-                  onClick={() => setCommentPopup(null)}
-                  className="p-2 hover:bg-slate-50 rounded-full text-slate-400 transition-colors"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">
-                {commentPopup.title}
-              </p>
-              <div className="bg-rose-50 border border-rose-100 rounded-xl p-4 mt-3">
-                {commentPopup.adminComment ? (
-                  <p className="text-sm text-rose-700 leading-relaxed">
-                    {commentPopup.adminComment}
-                  </p>
-                ) : (
-                  <p className="text-sm text-slate-400">No reason provided.</p>
-                )}
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      <CommonTable
+        columns={columns}
+        data={staffList}
+        pagination={staffPagination || undefined}
+        onPageChange={handlePageChange}
+        onSearchChange={handleSearchChange}
+        isLoading={isLoading}
+        searchPlaceholder="Search staff by name or email..."
+        emptyMessage="No staff members found."
+      />
 
-      {/* Create Staff Modal */}
+      {/* Create/Edit Staff Modal */}
       <AnimatePresence>
         {showModal && (
-          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[60] flex items-center justify-center p-6">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[60] flex items-center justify-center p-6">
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white w-full max-w-md rounded-3xl shadow-2xl border border-slate-100 p-8"
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white w-full max-w-lg rounded-[32px] shadow-2xl border border-white/20 p-8"
             >
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-bold text-slate-800 tracking-tight">
-                  Add Staff Member
-                </h3>
+              <div className="flex justify-between items-center mb-8 sticky top-0 bg-white z-10 pb-2">
+                <div>
+                  <h3 className="text-2xl font-black text-slate-800 tracking-tight">
+                    {editingId ? "Edit Member" : "Add Member"}
+                  </h3>
+                  <p className="text-slate-400 text-xs mt-1">
+                    {editingId ? "Update account details" : "Create a new team account"}
+                  </p>
+                </div>
                 <button
                   onClick={() => setShowModal(false)}
-                  className="p-2 hover:bg-slate-50 rounded-full text-slate-400 transition-colors"
+                  className="p-3 hover:bg-slate-50 rounded-2xl text-slate-400 transition-colors"
                 >
                   <X size={20} />
                 </button>
               </div>
 
-              <form onSubmit={handleCreate} className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
-                    Full Name
-                  </label>
-                  <div className="relative">
-                    <UserIcon
-                      className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                      size={16}
-                    />
-                    <input
-                      type="text"
-                      value={formData.name}
-                      onChange={(e) =>
-                        setFormData({ ...formData, name: e.target.value })
-                      }
-                      placeholder="e.g. John Smith"
-                      className={cn(
-                        "w-full bg-slate-50 border rounded-xl pl-10 pr-4 py-3 text-slate-700 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-primary/5 focus:border-primary transition-all text-sm",
-                        errors.name ? "border-rose-400" : "border-slate-200",
-                      )}
-                    />
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+                      Full Name
+                    </label>
+                    <div className="relative">
+                      <UserIcon
+                        className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300"
+                        size={16}
+                      />
+                      <input
+                        type="text"
+                        value={formData.name}
+                        onChange={(e) =>
+                          setFormData({ ...formData, name: e.target.value })
+                        }
+                        placeholder="e.g. John Smith"
+                        className={cn(
+                          "w-full bg-slate-50 border rounded-2xl pl-12 pr-5 py-4 text-slate-700 placeholder:text-slate-300 focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all text-sm",
+                          errors.name ? "border-rose-400" : "border-slate-200",
+                        )}
+                      />
+                    </div>
+                    {errors.name && (
+                      <p className="text-xs text-rose-500 ml-1">{errors.name}</p>
+                    )}
                   </div>
-                  {errors.name && (
-                    <p className="text-xs text-rose-500 ml-1">{errors.name}</p>
-                  )}
-                </div>
 
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
-                    Email
-                  </label>
-                  <div className="relative">
-                    <Mail
-                      className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                      size={16}
-                    />
-                    <input
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) =>
-                        setFormData({ ...formData, email: e.target.value })
-                      }
-                      placeholder="e.g. john@company.com"
-                      className={cn(
-                        "w-full bg-slate-50 border rounded-xl pl-10 pr-4 py-3 text-slate-700 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-primary/5 focus:border-primary transition-all text-sm",
-                        errors.email ? "border-rose-400" : "border-slate-200",
-                      )}
-                    />
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+                      Email
+                    </label>
+                    <div className="relative">
+                      <Mail
+                        className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300"
+                        size={16}
+                      />
+                      <input
+                        type="email"
+                        value={formData.email}
+                        onChange={(e) =>
+                          setFormData({ ...formData, email: e.target.value })
+                        }
+                        placeholder="e.g. john@company.com"
+                        className={cn(
+                          "w-full bg-slate-50 border rounded-2xl pl-12 pr-5 py-4 text-slate-700 placeholder:text-slate-300 focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all text-sm",
+                          errors.email ? "border-rose-400" : "border-slate-200",
+                        )}
+                      />
+                    </div>
+                    {errors.email && (
+                      <p className="text-xs text-rose-500 ml-1">{errors.email}</p>
+                    )}
                   </div>
-                  {errors.email && (
-                    <p className="text-xs text-rose-500 ml-1">{errors.email}</p>
-                  )}
-                </div>
 
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
-                    Password
-                  </label>
-                  <div className="relative">
-                    <Lock
-                      className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                      size={16}
-                    />
-                    <input
-                      type="password"
-                      value={formData.password}
-                      onChange={(e) =>
-                        setFormData({ ...formData, password: e.target.value })
-                      }
-                      placeholder="••••••••"
-                      className={cn(
-                        "w-full bg-slate-50 border rounded-xl pl-10 pr-4 py-3 text-slate-700 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-primary/5 focus:border-primary transition-all text-sm",
-                        errors.password
-                          ? "border-rose-400"
-                          : "border-slate-200",
-                      )}
-                    />
-                  </div>
-                  {errors.password && (
-                    <p className="text-xs text-rose-500 ml-1">
-                      {errors.password}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
-                    Department
-                  </label>
-                  <div className="relative">
-                    <Building2
-                      className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                      size={16}
-                    />
-                    <select
-                      value={formData.department}
-                      onChange={(e) =>
-                        setFormData({ ...formData, department: e.target.value })
-                      }
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-3 text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/5 focus:border-primary transition-all text-sm appearance-none"
-                    >
-                      <option>Engineering</option>
-                      <option>Finance</option>
-                      <option>HR</option>
-                      <option>Legal</option>
-                      <option>Operations</option>
-                      <option>Marketing</option>
-                    </select>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+                      Password {editingId && "(Leave blank to keep current)"}
+                    </label>
+                    <div className="relative">
+                      <Lock
+                        className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300"
+                        size={16}
+                      />
+                      <input
+                        type="password"
+                        value={formData.password}
+                        onChange={(e) =>
+                          setFormData({ ...formData, password: e.target.value })
+                        }
+                        placeholder="••••••••"
+                        className={cn(
+                          "w-full bg-slate-50 border rounded-2xl pl-12 pr-5 py-4 text-slate-700 placeholder:text-slate-300 focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all text-sm",
+                          errors.password
+                            ? "border-rose-400"
+                            : "border-slate-200",
+                        )}
+                      />
+                    </div>
+                    {errors.password && (
+                      <p className="text-xs text-rose-500 ml-1">
+                        {errors.password}
+                      </p>
+                    )}
                   </div>
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
                     Portal Access Level
                   </label>
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setFormData({ ...formData, role: "staff" })
-                      }
-                      className={cn(
-                        "flex flex-col items-center gap-2 p-4 rounded-2xl border transition-all",
-                        formData.role === "staff"
-                          ? "border-primary bg-primary/5 text-primary shadow-sm"
-                          : "border-slate-100 bg-white/30 text-slate-400 hover:border-slate-200",
-                      )}
-                    >
-                      <UserIcon size={20} />
-                      <span className="text-[10px] font-black uppercase tracking-widest">
-                        Employee
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setFormData({ ...formData, role: "admin" })
-                      }
-                      className={cn(
-                        "flex flex-col items-center gap-2 p-4 rounded-2xl border transition-all",
-                        formData.role === "admin"
-                          ? "border-primary bg-primary/5 text-primary shadow-sm"
-                          : "border-slate-100 bg-white/30 text-slate-400 hover:border-slate-200",
-                      )}
-                    >
-                      <ShieldCheck size={20} />
-                      <span className="text-[10px] font-black uppercase tracking-widest">
-                        Executive
-                      </span>
-                    </button>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { id: 'admin', label: 'Executive', icon: ShieldCheck },
+                      { id: 'hr', label: 'HR Manager', icon: Users },
+                      { id: 'staff', label: 'Employee', icon: UserIcon },
+                    ].map((r) => {
+                      const Icon = r.icon;
+                      return (
+                        <button
+                          key={r.id}
+                          type="button"
+                          onClick={() => setFormData({ ...formData, role: r.id as Role })}
+                          className={cn(
+                            "flex flex-col items-center gap-2 p-3 rounded-2xl border transition-all",
+                            formData.role === r.id
+                              ? "border-primary bg-primary/5 text-primary shadow-md shadow-primary/10"
+                              : "border-slate-100 bg-slate-50 text-slate-400 hover:border-slate-200",
+                          )}
+                        >
+                          <Icon size={18} />
+                          <span className="text-[8px] font-black uppercase tracking-widest text-center">
+                            {r.label}
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
+                {formData.role !== 'admin' && (
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+                      Assign Companies
+                    </label>
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 flex items-center justify-between text-sm text-slate-700 focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all"
+                      >
+                        <span className="text-slate-400">Select Companies...</span>
+                        <ChevronDown className={cn("text-slate-400 transition-transform", isDropdownOpen && "rotate-180")} size={18} />
+                      </button>
+
+                      <AnimatePresence>
+                        {isDropdownOpen && (
+                          <motion.div
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            className="absolute z-20 left-0 right-0 mt-2 bg-white border border-slate-100 shadow-xl rounded-2xl max-h-[250px] overflow-y-auto p-2 space-y-1"
+                          >
+                            {availableCompanies.length === 0 ? (
+                              <p className="text-xs text-slate-400 p-4 text-center">No companies available</p>
+                            ) : (
+                              availableCompanies.map((c) => (
+                                <button
+                                  key={c._id}
+                                  type="button"
+                                  onClick={() => {
+                                    toggleCompany(c._id);
+                                    setIsDropdownOpen(false);
+                                  }}
+                                  className={cn(
+                                    "w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition-colors text-left",
+                                    formData.assignedCompanies.includes(c._id)
+                                      ? "bg-primary/5 text-primary"
+                                      : "text-slate-600 hover:bg-slate-50"
+                                  )}
+                                >
+                                  {c.name}
+                                  {formData.assignedCompanies.includes(c._id) && <Check size={14} />}
+                                </button>
+                              ))
+                            )}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2 pt-2">
+                      {formData.assignedCompanies.map((id) => {
+                        const company = availableCompanies.find(c => c._id === id);
+                        return (
+                          <div
+                            key={id}
+                            className="flex items-center gap-2 bg-slate-800 text-white px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider shadow-md shadow-slate-200 group animate-in zoom-in-95"
+                          >
+                            <span>{company?.name || "Unknown"}</span>
+                            <button
+                              type="button"
+                              onClick={() => removeCompany(id)}
+                              className="hover:text-rose-400 transition-colors"
+                            >
+                              <X size={12} />
+                            </button>
+                          </div>
+                        );
+                      })}
+                      {formData.assignedCompanies.length === 0 && (
+                        <p className="text-[10px] text-amber-500 font-bold ml-1 italic animate-pulse">
+                          ⚠ Please assign at least one company
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 <button
                   type="submit"
-                  className="w-full bg-primary text-white font-black py-4 rounded-2xl flex items-center justify-center gap-2 hover:opacity-90 active:scale-[0.98] transition-all shadow-lg shadow-primary/20 text-xs uppercase tracking-widest mt-2"
+                  className="w-full bg-primary text-white font-black py-5 rounded-[20px] flex items-center justify-center gap-2 hover:opacity-90 active:scale-[0.98] transition-all shadow-xl shadow-primary/20 text-xs uppercase tracking-widest mt-2"
                 >
-                  <UserPlus size={16} />
-                  Create & Login as Member
+                  {editingId ? <Pencil size={18} /> : <UserPlus size={18} />}
+                  {editingId ? "Update Member Details" : "Add Member to Team"}
                 </button>
               </form>
             </motion.div>
@@ -455,32 +530,6 @@ export default function DirectoryContent({
   );
 }
 
-// function StatCard({
-//   label,
-//   value,
-//   color,
-// }: {
-//   label: string;
-//   value: number;
-//   color: string;
-// }) {
-//   const colors: Record<string, string> = {
-//     blue: "bg-blue-50 text-blue-600",
-//     amber: "bg-amber-50 text-amber-600",
-//     emerald: "bg-emerald-50 text-emerald-600",
-//     rose: "bg-rose-50 text-rose-600",
-//   };
-//   return (
-//     <div className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:translate-y-[-2px] transition-all">
-//       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
-//         {label}
-//       </p>
-//       <p className="text-3xl font-extrabold text-slate-800 tracking-tight">
-//         {value}
-//       </p>
-//     </div>
-//   );
-// }
 function StatCard({
   label,
   value,

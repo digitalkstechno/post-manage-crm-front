@@ -12,8 +12,8 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (role === null) router.replace('/');
-    if (role === "staff") router.replace('/submissions');
-  }, [role]);
+    if (role === "staff") router.replace('/posts');
+  }, [role, router]);
 
   if (!role || role === "staff") return <div className="min-h-screen bg-[#F8FAFC]" />;
 

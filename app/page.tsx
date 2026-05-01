@@ -11,8 +11,8 @@ export default function Home() {
 
   useEffect(() => {
     if (!authReady) return;
-    if (role === "admin") router.replace('/submissions');
-    else if (role === "staff") router.replace('/submissions');
+    if (role === "admin") router.replace('/admin');
+    else if (role === "staff") router.replace('/posts');
   }, [role, authReady]);
 
   if (!authReady || role) return <div className="min-h-screen bg-[#F8FAFC]" />;

@@ -1,55 +1,28 @@
 "use client";
 
 import { useApp } from "@/lib/context";
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 import { FileText, CheckCircle, XCircle, Upload, TrendingUp, TrendingDown } from "lucide-react";
 
 export default function AdminDashboard() {
-  const { submissions } = useApp();
+  const { adminStats, fetchAdminStats } = useApp();
 
-  const stats = useMemo(() => {
-    const now = new Date();
-    const thisMonth = now.getMonth();
-    const thisYear = now.getFullYear();
-    const lastMonth = thisMonth === 0 ? 11 : thisMonth - 1;
-    const lastMonthYear = thisMonth === 0 ? thisYear - 1 : thisYear;
-
-    const isThisMonth = (d: string) => {
-      const date = new Date(d);
-      return date.getMonth() === thisMonth && date.getFullYear() === thisYear;
-    };
-    const isLastMonth = (d: string) => {
-      const date = new Date(d);
-      return date.getMonth() === lastMonth && date.getFullYear() === lastMonthYear;
-    };
-
-    const thisMonthSubs = submissions.filter((s) => isThisMonth(s.createdAt));
-    const lastMonthSubs = submissions.filter((s) => isLastMonth(s.createdAt));
-
-    return {
-      totalUploads: submissions.length,
-      thisMonthUploads: thisMonthSubs.length,
-      totalApproved: submissions.filter((s) => s.status === "approved").length,
-      totalRejected: submissions.filter((s) => s.status === "rejected").length,
-      lastMonthApproved: lastMonthSubs.filter((s) => s.status === "approved").length,
-      lastMonthRejected: lastMonthSubs.filter((s) => s.status === "rejected").length,
-      thisMonthApproved: thisMonthSubs.filter((s) => s.status === "approved").length,
-      thisMonthRejected: thisMonthSubs.filter((s) => s.status === "rejected").length,
-    };
-  }, [submissions]);
+  useEffect(() => {
+    fetchAdminStats();
+  }, [fetchAdminStats]);
 
   const cards = [
     {
-      label: "Total Uploads",
-      value: stats.totalUploads,
+      label: "Total Posts",
+      value: adminStats.totalPosts,
       icon: Upload,
       color: "bg-violet-500",
       light: "bg-violet-50",
       text: "text-violet-600",
     },
     {
-      label: "This Month Uploads",
-      value: stats.thisMonthUploads,
+      label: "This Month Posts",
+      value: adminStats.thisMonthPosts,
       icon: FileText,
       color: "bg-blue-500",
       light: "bg-blue-50",
@@ -57,7 +30,7 @@ export default function AdminDashboard() {
     },
     {
       label: "Total Approved",
-      value: stats.totalApproved,
+      value: adminStats.totalApproved,
       icon: CheckCircle,
       color: "bg-emerald-500",
       light: "bg-emerald-50",
@@ -65,7 +38,7 @@ export default function AdminDashboard() {
     },
     {
       label: "Total Rejected",
-      value: stats.totalRejected,
+      value: adminStats.totalRejected,
       icon: XCircle,
       color: "bg-rose-500",
       light: "bg-rose-50",
@@ -83,7 +56,7 @@ export default function AdminDashboard() {
     <div className="p-8 space-y-8">
       <div>
         <h1 className="text-2xl font-black text-slate-800 tracking-tight">Admin Dashboard</h1>
-        <p className="text-slate-400 text-sm mt-1">Overview of all submission activity</p>
+        <p className="text-slate-400 text-sm mt-1">Overview of all posting activity</p>
       </div>
 
       {/* Main Stats */}
@@ -116,14 +89,14 @@ export default function AdminDashboard() {
             <div className="flex items-center justify-between">
               <span className="text-sm text-slate-500 font-medium">Approved</span>
               <span className="text-sm font-black text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">
-                {stats.thisMonthApproved}
+                {adminStats.thisMonthApproved}
               </span>
             </div>
             <div className="h-px bg-slate-100" />
             <div className="flex items-center justify-between">
               <span className="text-sm text-slate-500 font-medium">Rejected</span>
               <span className="text-sm font-black text-rose-600 bg-rose-50 px-3 py-1 rounded-full">
-                {stats.thisMonthRejected}
+                {adminStats.thisMonthRejected}
               </span>
             </div>
           </div>
@@ -139,14 +112,14 @@ export default function AdminDashboard() {
             <div className="flex items-center justify-between">
               <span className="text-sm text-slate-500 font-medium">Approved</span>
               <span className="text-sm font-black text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">
-                {stats.lastMonthApproved}
+                {adminStats.lastMonthApproved}
               </span>
             </div>
             <div className="h-px bg-slate-100" />
             <div className="flex items-center justify-between">
               <span className="text-sm text-slate-500 font-medium">Rejected</span>
               <span className="text-sm font-black text-rose-600 bg-rose-50 px-3 py-1 rounded-full">
-                {stats.lastMonthRejected}
+                {adminStats.lastMonthRejected}
               </span>
             </div>
           </div>

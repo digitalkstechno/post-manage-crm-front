@@ -8,7 +8,7 @@ import LoginView from "@/components/dashboard/LoginView";
 import { motion, AnimatePresence } from "motion/react";
 import { usePathname } from "next/navigation";
 
-const PROTECTED = ['/submissions', '/upload', '/directory', '/admin', '/companies'];
+const PROTECTED = ['/posts', '/add-post', '/directory', '/admin', '/companies'];
 
 export default function DashboardLayout({
   children,
@@ -21,13 +21,12 @@ export default function DashboardLayout({
   // Still loading auth
   if (!authReady) return <div className="min-h-screen bg-[#F8FAFC]" />;
 
-  // Auth ready, no role, on protected page — show blank (context will redirect)
-  if (!role && PROTECTED.includes(pathname)) return <div className="min-h-screen bg-[#F8FAFC]" />;
+  // Auth ready, but no role? Show Login (handled in return)
 
   const getPageTitle = () => {
     if (pathname === '/') return 'Administrative Overview';
-    if (pathname === '/submissions') return 'Post Management';
-    if (pathname === '/upload') return 'Create Submission';
+    if (pathname === '/posts') return 'Post Management';
+    if (pathname === '/add-post') return 'Create New Post';
     if (pathname === '/directory') return 'Staff Directory';
     if (pathname === '/companies') return 'Companies';
     return 'SMM Portal';

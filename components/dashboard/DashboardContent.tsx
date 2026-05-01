@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import Image from "next/image";
 import { motion, AnimatePresence } from "motion/react";
 import {
   CloudUpload,
@@ -13,31 +12,31 @@ import {
   MessageSquare,
   Filter,
   Download,
-  MoreVertical,
   Check,
   X,
   Share2,
 } from "lucide-react";
-import { Submission, Role, SubmissionStatus } from "@/lib/types";
+import { Post, Role, PostStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useApp } from "@/lib/context";
 import Link from "next/link";
 import { PlusCircle } from "lucide-react";
+import CommonTable from "../common/CommonTable";
 
 interface DashboardContentProps {
   role: Role;
   activeTab: string;
-  submissions: Submission[];
+  posts: Post[];
   searchQuery?: string;
-  addSubmission: (
+  addPost: (
     s: Omit<
-      Submission,
+      Post,
       "id" | "status" | "createdAt" | "staffName" | "staffEmail"
     >,
   ) => void;
   updateStatus: (
     id: string,
-    status: SubmissionStatus,
+    status: PostStatus,
     comment?: string,
   ) => void;
   resubmit?: (id: string, fileLink: string) => Promise<void>;
@@ -47,55 +46,29 @@ interface DashboardContentProps {
 export default function DashboardContent({
   role,
   activeTab,
-  submissions,
+  posts,
   searchQuery = "",
-  addSubmission,
+  addPost,
   updateStatus,
   resubmit,
   postToSocial,
 }: DashboardContentProps) {
-  const { companies } = useApp();
+  const { 
+    companies, 
+    postPagination, 
+    postStats,
+    fetchPosts, 
+    isLoading 
+  } = useApp();
   const [showRejectModal, setShowRejectModal] = useState<string | null>(null);
   const [rejectComment, setRejectComment] = useState("");
-  const [reworkModal, setReworkModal] = useState<Submission | null>(null);
+  const [reworkModal, setReworkModal] = useState<Post | null>(null);
   const [reworkLink, setReworkLink] = useState("");
   const [activeFilter, setActiveFilter] = useState<string>("all");
-  const [socialModal, setSocialModal] = useState<Submission | null>(null);
-  const [posting, setPosting] = useState(false);
+  const [socialModal, setSocialModal] = useState<Post | null>(null);
+  const [commentPopup, setCommentPopup] = useState<Post | null>(null);
 
-  // Local state for the upload form
-  const [formData, setFormData] = useState({
-    title: "",
-    description: "",
-    link: "",
-    company: "",
-    uploadAt: "",
-  });
-
-  const nowLocal = () => {
-    const now = new Date();
-    now.setSeconds(0, 0);
-    return now.toISOString().slice(0, 16);
-  };
-
-  const handleUploadSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.title || !formData.link) return;
-    if (formData.uploadAt && new Date(formData.uploadAt) < new Date()) {
-      alert("Upload date cannot be in the past.");
-      return;
-    }
-    addSubmission(formData);
-    setFormData({
-      title: "",
-      description: "",
-      link: "",
-      company: "",
-      uploadAt: "",
-    });
-  };
-
-  const getStatusColor = (status: SubmissionStatus) => {
+  const getStatusColor = (status: PostStatus) => {
     switch (status) {
       case "approved":
         return "bg-emerald-50 text-emerald-700 border-emerald-100";
@@ -108,61 +81,182 @@ export default function DashboardContent({
     }
   };
 
-  const personalSubmissions = submissions.filter((s) => true);
+  const stats = postStats;
 
-  const filteredSubmissions = submissions.filter((s) => {
-    const matchesSearch =
-      s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.staffName.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesFilter = activeFilter === "all" || s.status === activeFilter;
-    return matchesSearch && matchesFilter;
-  });
+  const columns = [
+    {
+      header: "Post Content",
+      accessor: (s: Post) => (
+        <div className="max-w-[200px]">
+          <p className="font-bold text-slate-800 truncate">{s.title}</p>
+          <p className="text-[10px] text-slate-400 truncate mt-0.5">{s.description || "No description"}</p>
+        </div>
+      )
+    },
+    ...(role === "admin" ? [{
+      header: "Staff",
+      accessor: (s: Post) => (
+        <span className="text-xs font-semibold text-slate-600">{s.staffName}</span>
+      )
+    }] : []),
+    {
+      header: "Company",
+      accessor: (s: Post) => (
+        <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg">
+          {s.company || "N/A"}
+        </span>
+      )
+    },
+    {
+      header: "Status",
+      accessor: (s: Post) => (
+        <div className="flex items-center gap-2">
+          <span
+            className={cn(
+              "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border",
+              getStatusColor(s.status)
+            )}
+          >
+            {s.status}
+          </span>
+          {s.adminComment && (
+             <button
+                onClick={() => setCommentPopup(s)}
+                className="p-1 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"
+                title="View Note"
+              >
+                <MessageSquare size={12} />
+              </button>
+          )}
+        </div>
+      )
+    },
+    {
+      header: "Post Date",
+      accessor: (s: Post) => (
+        <div className="flex flex-col">
+          <span className="text-[10px] font-bold text-slate-600">
+            {s.uploadAt ? new Date(s.uploadAt).toLocaleDateString("en-IN", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric"
+            }) : "N/A"}
+          </span>
+          <span className="text-[9px] text-slate-400 font-medium">
+            {s.uploadAt ? new Date(s.uploadAt).toLocaleTimeString("en-IN", {
+              hour: "2-digit",
+              minute: "2-digit"
+            }) : ""}
+          </span>
+        </div>
+      )
+    },
+    {
+      header: "Link",
+      accessor: (s: Post) => (
+        <a
+          href={s.link}
+          target="_blank"
+          rel="noreferrer"
+          className="p-2 bg-primary/5 text-primary rounded-xl hover:bg-primary/10 transition-colors flex items-center justify-center w-fit"
+        >
+          <ExternalLink size={14} />
+        </a>
+      )
+    },
+    {
+      header: "Actions",
+      accessor: (s: Post) => (
+        <div className="flex items-center justify-end gap-2 transition-opacity">
+          {(role === "admin" || role === "hr") && s.status === "pending" && (
+            <>
+              <button
+                onClick={() => updateStatus(s.id, "approved")}
+                className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 border border-emerald-100 transition-all"
+                title="Approve"
+              >
+                <Check size={14} />
+              </button>
+              <button
+                onClick={() => setShowRejectModal(s.id)}
+                className="p-1.5 bg-rose-50 text-rose-600 rounded-lg hover:bg-rose-100 border border-rose-100 transition-all"
+                title="Reject / Rework"
+              >
+                <X size={14} />
+              </button>
+            </>
+          )}
+          {(role === "admin" || role === "hr") && s.status === "approved" && (
+            <button
+              onClick={() => setSocialModal(s)}
+              className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 border border-blue-100 transition-all"
+              title="Post to Social"
+            >
+              <Share2 size={14} />
+            </button>
+          )}
+          {role === "staff" && s.status === "rework" && (
+            <button
+              onClick={() => {
+                setReworkModal(s);
+                setReworkLink(s.link);
+              }}
+              className="px-3 py-1 bg-violet-600 text-white text-[10px] font-black uppercase tracking-widest rounded-lg shadow-lg shadow-violet-600/20 active:scale-95 transition-all"
+            >
+              Resubmit
+            </button>
+          )}
+        </div>
+      ),
+      className: "text-right"
+    }
+  ];
 
-  const stats = {
-    total: submissions.length,
-    pending: submissions.filter((s) => s.status === "pending").length,
-    approved: submissions.filter((s) => s.status === "approved").length,
-    rejected: submissions.filter((s) => s.status === "rejected").length,
-    rework: submissions.filter((s) => s.status === "rework").length,
-  };
+  const handlePageChange = React.useCallback((page: number) => {
+    fetchPosts(page, 10, searchQuery, activeFilter !== "all" ? activeFilter : undefined);
+  }, [fetchPosts, searchQuery, activeFilter]);
+
+  const handleSearchChange = React.useCallback((search: string) => {
+    fetchPosts(1, 10, search, activeFilter !== "all" ? activeFilter : undefined);
+  }, [fetchPosts, activeFilter]);
 
   return (
     <div className="p-8 pb-20 max-w-7xl mx-auto space-y-8">
       {/* Stats Section */}
-      {(activeTab === "overview" || activeTab === "submissions") && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {(activeTab === "admin" || activeTab === "posts") && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
           <StatCard
-            label="Total Submissions"
+            label="Total Posts"
             value={stats.total}
             icon={FileText}
-            trend="+12% ↑"
+            trend="All Time"
             color="blue"
             active={activeFilter === "all"}
             onClick={() => setActiveFilter("all")}
           />
           <StatCard
-            label="Pending Requests"
+            label="Pending"
             value={stats.pending}
             icon={Clock}
-            trend="Action Req"
+            trend="Needs Action"
             color="amber"
             active={activeFilter === "pending"}
             onClick={() => setActiveFilter("pending")}
           />
           <StatCard
-            label="Total Approved"
+            label="Approved"
             value={stats.approved}
             icon={CheckCircle2}
-            trend="93% Rate"
+            trend="Confirmed"
             color="emerald"
             active={activeFilter === "approved"}
             onClick={() => setActiveFilter("approved")}
           />
           <StatCard
-            label="Total Rejected"
+            label="Rejected"
             value={stats.rejected}
             icon={XCircle}
-            trend="Manual Rev."
+            trend="Failed"
             color="rose"
             active={activeFilter === "rejected"}
             onClick={() => setActiveFilter("rejected")}
@@ -171,7 +265,7 @@ export default function DashboardContent({
             label="Rework"
             value={stats.rework}
             icon={MessageSquare}
-            trend="In Review"
+            trend="Fixes Needed"
             color="violet"
             active={activeFilter === "rework"}
             onClick={() => setActiveFilter("rework")}
@@ -179,449 +273,240 @@ export default function DashboardContent({
         </div>
       )}
 
-      {/* Main Content Areas */}
+      {/* Main Content */}
       <AnimatePresence mode="wait">
-        {activeTab === "overview" && (
+        {activeTab === "admin" && (
           <motion.div
-            key="overview"
+            key="admin"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="space-y-8"
+          >
+             <div className="flex justify-between items-end">
+              <div>
+                <h2 className="text-2xl font-black text-slate-800 tracking-tight">Recent Posts</h2>
+                <p className="text-slate-400 text-sm mt-1">Latest updates from your team</p>
+              </div>
+            </div>
+
+            <CommonTable
+              columns={columns}
+              data={posts.slice(0, 5)}
+              isLoading={isLoading}
+              hidePagination
+              emptyMessage="No recent activity."
+            />
+          </motion.div>
+        )}
+
+        {activeTab === "posts" && (
+          <motion.div
+            key="posts"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             className="space-y-6"
           >
-            {role === "staff" && (
-              <div className="flex justify-end">
+            <div className="flex justify-between items-end">
+              <div>
+                <h1 className="text-3xl font-black text-slate-800 tracking-tight">All Posts</h1>
+                <p className="text-slate-400 text-sm mt-1">Full history of content uploads</p>
+              </div>
+              {/* {role === "staff" && (
                 <Link
-                  href="/upload"
-                  className="bg-primary text-white font-bold py-2.5 px-5 rounded-xl flex items-center gap-2 hover:opacity-90 transition-all shadow-lg shadow-primary/20 text-sm"
+                  href="/add-post"
+                  className="bg-primary text-white font-bold py-3 px-6 rounded-2xl flex items-center gap-2 hover:opacity-90 active:scale-95 transition-all shadow-xl shadow-primary/20 text-sm"
                 >
-                  <PlusCircle size={16} />
-                  <span>New Submission</span>
+                  <PlusCircle size={18} />
+                  <span>Create New Post</span>
                 </Link>
-              </div>
-            )}
-
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-bold text-slate-800">
-                Recent Activity
-              </h3>
-              <div className="flex gap-2">
-                <button className="flex items-center gap-2 px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-all">
-                  <Filter size={14} />
-                  Filter
-                </button>
-                <button className="flex items-center gap-2 px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-all">
-                  <Download size={14} />
-                  Export
-                </button>
-              </div>
+              )} */}
             </div>
 
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-              <SubmissionTable
-                submissions={filteredSubmissions.slice(0, 5)}
-                role={role}
-                getStatusColor={getStatusColor}
-                onApprove={(id) => updateStatus(id, "approved")}
-                onRejectInitiate={(id) => setShowRejectModal(id)}
-                onReworkInitiate={() => {}}
-                onResubmitInitiate={(s) => {
-                  setReworkModal(s);
-                  setReworkLink(s.link);
-                }}
-                onPostSocial={role === "admin" ? (s) => setSocialModal(s) : undefined}
-              />
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2 bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 p-6 h-64 flex flex-col justify-between">
-                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
-                  Submission Trends
-                </h4>
-                <div className="flex items-end justify-between h-32 gap-3 px-2">
-                  {[40, 60, 45, 80, 95, 70, 90].map((h, i) => (
-                    <div
-                      key={i}
-                      className="flex-1 bg-slate-100/50 rounded-t-xl relative group transition-all hover:bg-primary/5"
-                    >
-                      <div
-                        className="absolute inset-x-1 bottom-0 bg-primary/20 rounded-t-lg scale-y-0 origin-bottom transition-transform duration-700"
-                        style={{ height: `${h}%`, transform: "scaleY(1)" }}
-                      />
-                    </div>
-                  ))}
-                </div>
-                <div className="flex justify-between text-[9px] font-bold text-slate-300 uppercase tracking-widest px-2">
-                  <span>Mon</span>
-                  <span>Tue</span>
-                  <span>Wed</span>
-                  <span>Thu</span>
-                  <span>Fri</span>
-                  <span>Sat</span>
-                  <span>Sun</span>
-                </div>
-              </div>
-              <div className="bg-primary rounded-2xl p-8 text-white relative overflow-hidden flex flex-col justify-between shadow-2xl shadow-primary/30">
-                <div className="relative z-10">
-                  <h4 className="text-[10px] font-black opacity-60 uppercase tracking-[0.2em] mb-2">
-                    System Health
-                  </h4>
-                  <p className="text-xl font-extrabold tracking-tight">
-                    Active & Secure
-                  </p>
-                </div>
-                <div className="space-y-4 relative z-10">
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between text-[10px] font-bold uppercase opacity-60">
-                      <span>Server Load</span>
-                      <span>32%</span>
-                    </div>
-                    <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-                      <div className="h-full bg-white w-[32%] shadow-[0_0_8px_rgba(255,255,255,0.5)]" />
-                    </div>
-                  </div>
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between text-[10px] font-bold uppercase opacity-60">
-                      <span>Response Time</span>
-                      <span>42ms</span>
-                    </div>
-                    <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-                      <div className="h-full bg-emerald-400 w-[12%] shadow-[0_0_8px_rgba(52,211,153,0.5)]" />
-                    </div>
-                  </div>
-                </div>
-                <div className="absolute -right-12 -bottom-12 w-48 h-48 bg-white/5 rounded-full blur-3xl" />
-              </div>
-            </div>
-          </motion.div>
-        )}
-
-        {activeTab === "submissions" && (
-          <motion.div
-            key="submissions"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="space-y-4"
-          >
-            {role === "staff" && (
-              <div className="flex justify-end">
-                <Link
-                  href="/upload"
-                  className="bg-primary text-white font-bold py-2.5 px-5 rounded-xl flex items-center gap-2 hover:opacity-90 transition-all shadow-lg shadow-primary/20 text-sm"
-                >
-                  <PlusCircle size={16} />
-                  <span>New Submission</span>
-                </Link>
-              </div>
-            )}
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-              <SubmissionTable
-                submissions={filteredSubmissions}
-                role={role}
-                getStatusColor={getStatusColor}
-                onApprove={(id) => updateStatus(id, "approved")}
-                onRejectInitiate={(id) => setShowRejectModal(id)}
-                onReworkInitiate={() => {}}
-                onResubmitInitiate={(s) => {
-                  setReworkModal(s);
-                  setReworkLink(s.link);
-                }}
-                onPostSocial={role === "admin" ? (s) => setSocialModal(s) : undefined}
-              />
-            </div>
-          </motion.div>
-        )}
-
-        {role === "staff" && activeTab === "upload" && (
-          <motion.div
-            key="upload"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="flex flex-col md:flex-row gap-8"
-          >
-            <div className="flex-1 bg-white rounded-3xl border border-slate-200 p-10 shadow-sm">
-              <div className="flex items-center gap-3 mb-8 pb-4 border-b border-slate-50">
-                <CloudUpload className="text-primary" size={24} />
-                <h3 className="text-xl font-bold text-slate-800 tracking-tight">
-                  Submit New Documentation
-                </h3>
-              </div>
-
-              <form onSubmit={handleUploadSubmit} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="col-span-2 space-y-2">
-                    <label className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">
-                      Document Title
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.title}
-                      onChange={(e) =>
-                        setFormData({ ...formData, title: e.target.value })
-                      }
-                      placeholder="e.g., Performance Review Q1"
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-700 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-primary/5 focus:border-primary transition-all"
-                      required
-                    />
-                  </div>
-
-                  <div className="col-span-2 space-y-2">
-                    <label className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">
-                      Drive Link
-                    </label>
-                    <input
-                      type="url"
-                      value={formData.link}
-                      onChange={(e) =>
-                        setFormData({ ...formData, link: e.target.value })
-                      }
-                      placeholder="https://drive.google.com/..."
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-700 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-primary/5 focus:border-primary transition-all"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">
-                      Company
-                    </label>
-                    <select
-                      value={formData.company}
-                      onChange={(e) =>
-                        setFormData({ ...formData, company: e.target.value })
-                      }
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/5 focus:border-primary transition-all"
-                    >
-                      <option value="">Select Company</option>
-                      {companies.map((c) => (
-                        <option key={c.id} value={c.name}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">
-                      Upload At
-                    </label>
-                    <input
-                      type="datetime-local"
-                      value={formData.uploadAt}
-                      min={nowLocal()}
-                      onChange={(e) =>
-                        setFormData({ ...formData, uploadAt: e.target.value })
-                      }
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/5 focus:border-primary transition-all"
-                    />
-                  </div>
-                  <div className="col-span-2 space-y-2">
-                    <label className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">
-                      Context / Description
-                    </label>
-                    <textarea
-                      value={formData.description}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          description: e.target.value,
-                        })
-                      }
-                      rows={4}
-                      placeholder="Provide additional details for the reviewer..."
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-700 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-primary/5 focus:border-primary transition-all resize-none"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex justify-end pt-4">
-                  <button
-                    type="submit"
-                    className="bg-primary text-white font-bold py-3 px-8 rounded-xl hover:opacity-90 active:scale-[0.98] transition-all shadow-lg shadow-primary/20"
-                  >
-                    Send to Review
-                  </button>
-                </div>
-              </form>
-            </div>
+            <CommonTable
+              columns={columns}
+              data={posts}
+              pagination={postPagination || undefined}
+              onPageChange={handlePageChange}
+              onSearchChange={handleSearchChange}
+              isLoading={isLoading}
+              searchPlaceholder="Search posts..."
+              emptyMessage="No posts matching your criteria."
+            />
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Reject / Rework Modal */}
+      {/* Reject Modal */}
       {showRejectModal && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[60] flex items-center justify-center p-6">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[60] flex items-center justify-center p-6">
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white w-full max-w-md rounded-3xl shadow-2xl border border-slate-100 p-8"
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="bg-white w-full max-w-md rounded-[32px] shadow-2xl border border-white/20 p-8"
           >
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-bold text-slate-800 tracking-tight">
-                Reject Submission
-              </h3>
+              <div>
+                <h3 className="text-2xl font-black text-slate-800 tracking-tight">Review Feedback</h3>
+                <p className="text-slate-400 text-xs mt-1">Add a note for the staff member</p>
+              </div>
               <button
                 onClick={() => {
                   setShowRejectModal(null);
                   setRejectComment("");
                 }}
-                className="p-2 hover:bg-slate-50 rounded-full text-slate-400 transition-colors"
+                className="p-3 hover:bg-slate-50 rounded-2xl text-slate-400 transition-colors"
               >
                 <X size={20} />
               </button>
             </div>
-            <p className="text-slate-500 text-sm mb-6">
-              Add a comment and choose to reject or request a rework.
-            </p>
+            
             <textarea
               value={rejectComment}
               onChange={(e) => setRejectComment(e.target.value)}
-              placeholder="e.g., Missing departmental sign-off..."
+              placeholder="Explain why this needs rework or is rejected..."
               rows={4}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/10 focus:border-rose-500 transition-all resize-none mb-6"
+              className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-5 text-sm focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all resize-none mb-8"
             />
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => {
-                  setShowRejectModal(null);
-                  setRejectComment("");
-                }}
-                className="px-6 py-2.5 text-sm font-semibold text-slate-500 hover:text-slate-800"
-              >
-                Cancel
-              </button>
+            
+            <div className="flex gap-3">
               <button
                 onClick={() => {
                   updateStatus(showRejectModal, "rework", rejectComment);
                   setShowRejectModal(null);
                   setRejectComment("");
                 }}
-                className="px-6 py-2.5 bg-violet-600 text-white font-bold rounded-xl active:scale-95 transition-all shadow-lg shadow-violet-600/20 text-sm"
+                className="flex-1 bg-violet-50 text-violet-600 font-bold py-4 rounded-2xl hover:bg-violet-100 transition-all text-xs uppercase tracking-widest border border-violet-100"
               >
                 Request Rework
               </button>
-              <button
+              {/* <button
                 onClick={() => {
                   updateStatus(showRejectModal, "rejected", rejectComment);
                   setShowRejectModal(null);
                   setRejectComment("");
                 }}
-                className="px-6 py-2.5 bg-rose-600 text-white font-bold rounded-xl active:scale-95 transition-all shadow-lg shadow-rose-600/20 text-sm"
+                className="flex-1 bg-rose-600 text-white font-black py-4 rounded-2xl active:scale-95 transition-all shadow-xl shadow-rose-600/20 text-xs uppercase tracking-widest"
               >
                 Reject
-              </button>
+              </button> */}
             </div>
           </motion.div>
         </div>
       )}
 
-      {/* Social Media Post Modal */}
+      {/* Social Modal */}
       <AnimatePresence>
         {socialModal && (
-          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[60] flex items-center justify-center p-6">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[60] flex items-center justify-center p-6">
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white w-full max-w-md rounded-3xl shadow-2xl border border-slate-100 p-8"
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white w-full max-w-md rounded-[32px] shadow-2xl border border-white/20 p-8"
             >
-              <div className="flex justify-between items-center mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-blue-50 rounded-xl">
-                    <Share2 size={20} className="text-blue-600" />
+              <div className="flex justify-between items-center mb-8">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600">
+                    <Share2 size={24} />
                   </div>
-                  <h3 className="text-xl font-bold text-slate-800 tracking-tight">Post to Social Media</h3>
+                  <div>
+                    <h3 className="text-2xl font-black text-slate-800 tracking-tight">Social Post</h3>
+                    <p className="text-slate-400 text-xs mt-1">Publish to external channels</p>
+                  </div>
                 </div>
-                <button onClick={() => setSocialModal(null)} className="p-2 hover:bg-slate-50 rounded-full text-slate-400 transition-colors">
+                <button onClick={() => setSocialModal(null)} className="p-3 hover:bg-slate-50 rounded-2xl text-slate-400 transition-colors">
                   <X size={20} />
                 </button>
               </div>
 
-              <div className="space-y-4 mb-6">
-                <div className="space-y-1">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Title</p>
-                  <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-700 text-sm font-semibold">
+              <div className="space-y-6 mb-10">
+                <div className="space-y-2">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Content Title</p>
+                  <div className="bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-slate-700 text-sm font-bold">
                     {socialModal.title}
                   </div>
                 </div>
-                <div className="space-y-1">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Link</p>
-                  <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm">
-                    <a href={socialModal.link} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline break-all">
+                <div className="space-y-2">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Live Source</p>
+                  <div className="bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-medium">
+                    <a href={socialModal.link} target="_blank" rel="noreferrer" className="text-primary hover:underline break-all">
                       {socialModal.link}
                     </a>
                   </div>
                 </div>
               </div>
 
-              <div className="flex gap-3 justify-end">
-                <button
-                  onClick={() => setSocialModal(null)}
-                  className="px-6 py-2.5 text-sm font-semibold text-slate-500 hover:text-slate-800"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={async () => {
-                    await postToSocial?.(socialModal.id);
-                    setSocialModal(null);
-                  }}
-                  className="px-6 py-2.5 bg-blue-600 text-white font-bold rounded-xl active:scale-95 transition-all shadow-lg shadow-blue-600/20 text-sm flex items-center gap-2"
-                >
-                  <Share2 size={16} />
-                  Post Now
-                </button>
-              </div>
+              <button
+                onClick={async () => {
+                  await postToSocial?.(socialModal.id);
+                  setSocialModal(null);
+                }}
+                className="w-full bg-primary text-white font-black py-5 rounded-[20px] flex items-center justify-center gap-2 hover:opacity-90 active:scale-[0.98] transition-all shadow-xl shadow-primary/20 text-xs uppercase tracking-widest"
+              >
+                <Share2 size={18} />
+                Confirm & Publish
+              </button>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
 
-      {/* Rework Resubmit Modal (staff) */}
+      {/* Rework Modal (Staff) */}
       <AnimatePresence>
         {reworkModal && (
-          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[60] flex items-center justify-center p-6">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[60] flex items-center justify-center p-6">
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white w-full max-w-md rounded-3xl shadow-2xl border border-slate-100 p-8"
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white w-full max-w-md rounded-[32px] shadow-2xl border border-white/20 p-8"
             >
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-bold text-slate-800">
-                  Resubmit — {reworkModal.title}
-                </h3>
+              <div className="flex justify-between items-center mb-8">
+                <div>
+                  <h3 className="text-2xl font-black text-slate-800 tracking-tight">Resubmit</h3>
+                  <p className="text-slate-400 text-xs mt-1">Update your work for review</p>
+                </div>
                 <button
                   onClick={() => setReworkModal(null)}
-                  className="p-2 hover:bg-slate-50 rounded-full text-slate-400 transition-colors"
+                  className="p-3 hover:bg-slate-50 rounded-2xl text-slate-400 transition-colors"
                 >
                   <X size={20} />
                 </button>
               </div>
+
               {reworkModal.adminComment && (
-                <div className="bg-violet-50 border border-violet-100 rounded-xl p-3 mb-4">
-                  <p className="text-[10px] font-black text-violet-400 uppercase tracking-widest mb-1">
-                    Admin Note
-                  </p>
-                  <p className="text-sm text-violet-700">
+                <div className="bg-violet-50 border border-violet-100 rounded-2xl p-5 mb-8">
+                  <div className="flex items-center gap-2 mb-2">
+                    <MessageSquare size={14} className="text-violet-400" />
+                    <p className="text-[10px] font-black text-violet-400 uppercase tracking-widest">
+                      Reviewer Notes
+                    </p>
+                  </div>
+                  <p className="text-sm text-violet-700 font-medium">
                     {reworkModal.adminComment}
                   </p>
                 </div>
               )}
-              <label className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">
-                Updated Drive / File Link
-              </label>
-              <input
-                type="url"
-                value={reworkLink}
-                onChange={(e) => setReworkLink(e.target.value)}
-                placeholder="https://drive.google.com/..."
-                className="w-full mt-2 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-700 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-primary/5 focus:border-primary transition-all text-sm mb-6"
-              />
-              <div className="flex gap-3 justify-end">
-                <button
+
+              <div className="space-y-2 mb-8">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+                  Updated File Link
+                </label>
+                <input
+                  type="url"
+                  value={reworkLink}
+                  onChange={(e) => setReworkLink(e.target.value)}
+                  placeholder="https://drive.google.com/..."
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-slate-700 placeholder:text-slate-300 focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all text-sm"
+                />
+              </div>
+
+              <div className="flex gap-4">
+                 <button
                   onClick={() => setReworkModal(null)}
-                  className="px-6 py-2.5 text-sm font-semibold text-slate-500 hover:text-slate-800"
+                  className="flex-1 bg-slate-100 text-slate-600 font-bold py-4 rounded-2xl hover:bg-slate-200 transition-all text-xs uppercase tracking-widest"
                 >
                   Cancel
                 </button>
@@ -631,11 +516,43 @@ export default function DashboardContent({
                     await resubmit?.(reworkModal.id, reworkLink);
                     setReworkModal(null);
                   }}
-                  className="px-8 py-2.5 bg-primary text-white font-bold rounded-xl active:scale-95 transition-all shadow-lg shadow-primary/20"
+                  className="flex-[2] bg-primary text-white font-black py-4 rounded-2xl active:scale-95 transition-all shadow-xl shadow-primary/20 text-xs uppercase tracking-widest"
                 >
-                  Resubmit
+                  Resubmit Now
                 </button>
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Admin Note Modal */}
+      <AnimatePresence>
+        {commentPopup && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[60] flex items-center justify-center p-6">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white w-full max-w-md rounded-[32px] shadow-2xl border border-white/20 p-8"
+            >
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-slate-800 tracking-tight">Reviewer Feedback</h3>
+                <button onClick={() => setCommentPopup(null)} className="p-2 hover:bg-slate-50 rounded-full text-slate-400 transition-colors">
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="p-6 bg-slate-50 rounded-[24px] border border-slate-100">
+                <p className="text-sm text-slate-600 leading-relaxed font-medium">
+                  {commentPopup.adminComment}
+                </p>
+              </div>
+              <button
+                onClick={() => setCommentPopup(null)}
+                className="w-full mt-6 bg-slate-800 text-white font-black py-4 rounded-2xl hover:opacity-90 transition-all text-xs uppercase tracking-widest"
+              >
+                Close
+              </button>
             </motion.div>
           </div>
         )}
@@ -681,358 +598,30 @@ function StatCard({
     <div
       onClick={onClick}
       className={cn(
-        "bg-white/80 backdrop-blur-sm p-6 rounded-2xl border shadow-sm transition-all hover:shadow-md hover:translate-y-[-2px] cursor-pointer",
-        active ? `${borderColors[color]} shadow-md` : "border-slate-200",
+        "bg-white/80 backdrop-blur-sm p-5 rounded-[24px] border shadow-sm transition-all hover:shadow-lg hover:translate-y-[-4px] cursor-pointer group",
+        active ? `${borderColors[color]} shadow-md bg-white` : "border-slate-100",
       )}
     >
       <div className="flex justify-between items-start mb-4">
-        <div className={cn("p-2.5 rounded-xl", colors[color])}>
+        <div className={cn("p-3 rounded-2xl group-hover:scale-110 transition-transform", colors[color])}>
           <Icon size={20} />
         </div>
         <span
           className={cn(
-            "text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border",
+            "text-[8px] font-black uppercase tracking-[0.1em] px-2 py-0.5 rounded-full border",
             colors[color],
           )}
         >
           {trend}
         </span>
       </div>
-      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-2">
-        {label}
-      </p>
-      <p className="text-3xl font-extrabold text-slate-800 tracking-tight">
-        {value}
-      </p>
-    </div>
-  );
-}
-
-function SubmissionTable({
-  submissions,
-  role,
-  getStatusColor,
-  onApprove,
-  onRejectInitiate,
-  onReworkInitiate,
-  onResubmitInitiate,
-  onPostSocial,
-}: {
-  submissions: Submission[];
-  role: Role;
-  getStatusColor: (s: SubmissionStatus) => string;
-  onApprove: (id: string) => void;
-  onRejectInitiate: (id: string) => void;
-  onReworkInitiate: (id: string) => void;
-  onResubmitInitiate: (s: Submission) => void;
-  onPostSocial?: (s: Submission) => void;
-}) {
-  const PAGE_SIZE = 10;
-  const [page, setPage] = React.useState(1);
-  const [commentPopup, setCommentPopup] = React.useState<Submission | null>(null);
-
-  React.useEffect(() => {
-    setPage(1);
-  }, [submissions.length]);
-
-  const totalPages = Math.max(1, Math.ceil(submissions.length / PAGE_SIZE));
-  const paged = submissions.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-left border-collapse table-fixed">
-        <thead>
-          <tr className="bg-slate-50 border-b border-slate-100">
-            <th className="px-4 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
-              Submission
-            </th>
-            {role === "admin" && (
-              <th className="px-4 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                Staff
-              </th>
-            )}
-            <th className="px-4 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
-              Submitted At
-            </th>
-            <th className="px-4 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
-              Upload At
-            </th>
-            <th className="px-4 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
-              Company
-            </th>
-            <th className="px-4 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
-              Status
-            </th>
-            <th className="px-4 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">
-              Actions
-            </th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-50">
-          {submissions.length === 0 ? (
-            <tr>
-              <td colSpan={7} className="px-6 py-20 text-center text-slate-400">
-                No submissions found.
-              </td>
-            </tr>
-          ) : (
-            paged.map((s) => (
-              <tr
-                key={s.id}
-                className="group hover:bg-slate-50/50 transition-colors"
-              >
-                <td className="px-4 py-4">
-                  <div>
-                    <p className="font-bold text-slate-800 truncate">{s.title}</p>
-                    <p className="text-xs text-slate-400 truncate mt-0.5">{s.description}</p>
-                  </div>
-                </td>
-                {role === "admin" && (
-                  <td className="px-2 py-4">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-slate-600">{s.staffName}</span>
-                    </div>
-                  </td>
-                )}
-                <td className="px-2 py-4 text-sm text-slate-500">
-                  {new Date(s.createdAt).toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                  })}
-                </td>
-                <td className="px-2 py-4 text-sm text-slate-500">
-                  {s.uploadAt ? (
-                    new Date(s.uploadAt).toLocaleString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })
-                  ) : (
-                    <span className="text-slate-300">—</span>
-                  )}
-                </td>
-                <td className="px-2 py-4">
-                  <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg">
-                    {s.companyName || s.company || "—"}
-                  </span>
-                </td>
-
-                {/* ── STATUS CELL ── */}
-                <td className="px-2 py-4">
-                  <div className="flex flex-col gap-1 items-start">
-                    {/* Primary status badge */}
-                    <span
-                      className={cn(
-                        "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border",
-                        getStatusColor(s.status),
-                      )}
-                    >
-                      <div
-                        className={cn(
-                          "w-1.5 h-1.5 rounded-full",
-                          s.status === "approved"
-                            ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"
-                            : s.status === "rejected"
-                              ? "bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]"
-                              : s.status === "rework"
-                                ? "bg-violet-500 shadow-[0_0_8px_rgba(139,92,246,0.5)]"
-                                : "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]",
-                        )}
-                      />
-                      {s.status}
-                    </span>
-
-                    {/* Rework button shown below rejected — for ALL roles */}
-                    {s.status === "rejected" && (
-                      <button
-                        onClick={() => onRejectInitiate(s.id)}
-                        className="px-3 py-1 bg-violet-600 text-violet-50 rounded-full text-[10px] font-black uppercase tracking-widest"
-                      >
-                        Rework
-                      </button>
-                    )}
-
-                    {/* Staff: resubmit button for rework status */}
-                    {s.status === "rework" && role === "staff" && (
-                      <button
-                        onClick={() => onResubmitInitiate(s)}
-                        className="px-3 py-1 bg-violet-600 text-white rounded-full hover:bg-violet-700 transition-all text-[10px] font-black uppercase tracking-widest"
-                      >
-                        Submit Rework
-                      </button>
-                    )}
-                  </div>
-                </td>
-
-                <td className="px-4 py-4 text-right">
-                  <div className="flex justify-end gap-2 items-center">
-                    {role === "admin" &&
-                    (s.status === "pending" || s.status === "rework") ? (
-                      <>
-                        <button
-                          onClick={() => onApprove(s.id)}
-                          className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-all border border-emerald-100"
-                          title="Approve"
-                        >
-                          <Check size={16} />
-                        </button>
-                        <button
-                          onClick={() => onRejectInitiate(s.id)}
-                          className="p-1.5 bg-rose-50 text-rose-600 rounded-lg hover:bg-rose-100 transition-all border border-rose-100"
-                          title="Reject / Rework"
-                        >
-                          <X size={16} />
-                        </button>
-                        {s.link && (
-                          <a
-                            href={s.link}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="p-1.5 text-slate-400 hover:text-primary transition-colors"
-                          >
-                            <ExternalLink size={16} />
-                          </a>
-                        )}
-                      </>
-                    ) : role === "admin" && s.status === "approved" ? (
-                      <div className="flex justify-end gap-2 items-center">
-                        {s.link && (
-                          <a href={s.link} target="_blank" rel="noreferrer" className="p-1.5 text-slate-400 hover:text-primary transition-colors">
-                            <ExternalLink size={16} />
-                          </a>
-                        )}
-                        <button
-                          onClick={() => onPostSocial?.(s)}
-                          className={cn(
-                            "p-1.5 rounded-lg transition-all border text-[10px] font-black",
-                            s.postedToSocial
-                              ? "bg-emerald-50 text-emerald-600 border-emerald-100 cursor-default"
-                              : "bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-100"
-                          )}
-                          title={s.postedToSocial ? "Already posted" : "Post to Social Media"}
-                          disabled={s.postedToSocial}
-                        >
-                          <Share2 size={16} />
-                        </button>
-                      </div>
-                    ) : role === "admin" && s.status === "rejected" ? (
-                      <div className="flex justify-end gap-2 items-center">
-                        
-                        <button
-                          onClick={() => setCommentPopup(s)}
-                          className="text-rose-400 hover:text-rose-600 transition-colors"
-                          title="View rejection reason"
-                        >
-                          <MessageSquare size={16} />
-                        </button>
-                        {s.link && (
-                          <a
-                            href={s.link}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="p-1.5 text-slate-400 hover:text-primary transition-colors"
-                          >
-                            <ExternalLink size={16} />
-                          </a>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-end gap-1">
-                        <div className="flex justify-end gap-2 items-center">
-                          {(s.status === "rejected" || s.status === "rework") && (
-                            <button
-                              onClick={() => setCommentPopup(s)}
-                              className={cn(
-                                "p-1.5 transition-colors",
-                                s.status === "rework"
-                                  ? "text-violet-400 hover:text-violet-600"
-                                  : "text-rose-400 hover:text-rose-600",
-                              )}
-                              title="View admin note"
-                            >
-                              <MessageSquare size={16} />
-                            </button>
-                          )}
-                          {s.link && s.status !== "rework" && (
-                            <a
-                              href={s.link}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="p-1.5 text-slate-400 hover:text-primary transition-colors"
-                            >
-                              <ExternalLink size={16} />
-                            </a>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
-
-      {/* Rejection Comment Popup */}
-      <AnimatePresence>
-        {commentPopup && (
-          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[60] flex items-center justify-center p-6">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white w-full max-w-md rounded-3xl shadow-2xl border border-slate-100 p-8"
-            >
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-bold text-slate-800">
-                  Rejection Reason
-                </h3>
-                <button
-                  onClick={() => setCommentPopup(null)}
-                  className="p-2 hover:bg-slate-50 rounded-full text-slate-400 transition-colors"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">
-                {commentPopup.title}
-              </p>
-              <div className="bg-rose-50 border border-rose-100 rounded-xl p-4 mt-3">
-                {commentPopup.adminComment ? (
-                  <p className="text-sm text-rose-700 leading-relaxed">
-                    {commentPopup.adminComment}
-                  </p>
-                ) : (
-                  <p className="text-sm text-slate-400">No reason provided.</p>
-                )}
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      <div className="p-6 bg-slate-50/30 border-t border-slate-100 flex justify-end items-center text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            className="px-3 py-1 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
-          >
-            Prev
-          </button>
-          <span className="text-slate-500">
-            {page} / {totalPages}
-          </span>
-          <button
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            className="px-3 py-1 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
-          >
-            Next
-          </button>
-        </div>
+      <div>
+        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1.5">
+          {label}
+        </p>
+        <p className="text-2xl font-black text-slate-800 tracking-tight">
+          {value}
+        </p>
       </div>
     </div>
   );
