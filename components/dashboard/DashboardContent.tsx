@@ -108,17 +108,13 @@ export default function DashboardContent({
     }
   };
 
-  const personalSubmissions = submissions.filter((s) => true); // In a real app, filter by user email
+  const personalSubmissions = submissions.filter((s) => true);
 
   const filteredSubmissions = submissions.filter((s) => {
-    // Search filter
     const matchesSearch =
       s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       s.staffName.toLowerCase().includes(searchQuery.toLowerCase());
-
-    // Status filter
     const matchesFilter = activeFilter === "all" || s.status === activeFilter;
-
     return matchesSearch && matchesFilter;
   });
 
@@ -233,7 +229,7 @@ export default function DashboardContent({
                   setReworkModal(s);
                   setReworkLink(s.link);
                 }}
-                onPostSocial={role === "admin" ? setSocialModal : undefined}
+                onPostSocial={role === "admin" ? (s) => setSocialModal(s) : undefined}
               />
             </div>
 
@@ -331,7 +327,7 @@ export default function DashboardContent({
                   setReworkModal(s);
                   setReworkLink(s.link);
                 }}
-                onPostSocial={role === "admin" ? setSocialModal : undefined}
+                onPostSocial={role === "admin" ? (s) => setSocialModal(s) : undefined}
               />
             </div>
           </motion.div>
@@ -519,6 +515,68 @@ export default function DashboardContent({
         </div>
       )}
 
+      {/* Social Media Post Modal */}
+      <AnimatePresence>
+        {socialModal && (
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[60] flex items-center justify-center p-6">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white w-full max-w-md rounded-3xl shadow-2xl border border-slate-100 p-8"
+            >
+              <div className="flex justify-between items-center mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-50 rounded-xl">
+                    <Share2 size={20} className="text-blue-600" />
+                  </div>
+                  <h3 className="text-xl font-bold text-slate-800 tracking-tight">Post to Social Media</h3>
+                </div>
+                <button onClick={() => setSocialModal(null)} className="p-2 hover:bg-slate-50 rounded-full text-slate-400 transition-colors">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="space-y-4 mb-6">
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Title</p>
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-700 text-sm font-semibold">
+                    {socialModal.title}
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Link</p>
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm">
+                    <a href={socialModal.link} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline break-all">
+                      {socialModal.link}
+                    </a>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setSocialModal(null)}
+                  className="px-6 py-2.5 text-sm font-semibold text-slate-500 hover:text-slate-800"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    await postToSocial?.(socialModal.id);
+                    setSocialModal(null);
+                  }}
+                  className="px-6 py-2.5 bg-blue-600 text-white font-bold rounded-xl active:scale-95 transition-all shadow-lg shadow-blue-600/20 text-sm flex items-center gap-2"
+                >
+                  <Share2 size={16} />
+                  Post Now
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* Rework Resubmit Modal (staff) */}
       <AnimatePresence>
         {reworkModal && (
@@ -649,6 +707,7 @@ function StatCard({
     </div>
   );
 }
+
 function SubmissionTable({
   submissions,
   role,
@@ -670,17 +729,15 @@ function SubmissionTable({
 }) {
   const PAGE_SIZE = 10;
   const [page, setPage] = React.useState(1);
-  const [commentPopup, setCommentPopup] = React.useState<Submission | null>(
-    null,
-  );
+  const [commentPopup, setCommentPopup] = React.useState<Submission | null>(null);
 
-  // Reset to page 1 when submissions list changes (filter/search)
   React.useEffect(() => {
     setPage(1);
   }, [submissions.length]);
 
   const totalPages = Math.max(1, Math.ceil(submissions.length / PAGE_SIZE));
   const paged = submissions.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-left border-collapse table-fixed">
@@ -726,20 +783,14 @@ function SubmissionTable({
               >
                 <td className="px-4 py-4">
                   <div>
-                    <p className="font-bold text-slate-800 truncate">
-                      {s.title}
-                    </p>
-                    <p className="text-xs text-slate-400 truncate mt-0.5">
-                      {s.description}
-                    </p>
+                    <p className="font-bold text-slate-800 truncate">{s.title}</p>
+                    <p className="text-xs text-slate-400 truncate mt-0.5">{s.description}</p>
                   </div>
                 </td>
                 {role === "admin" && (
                   <td className="px-2 py-4">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-slate-600">
-                        {s.staffName}
-                      </span>
+                      <span className="text-sm font-semibold text-slate-600">{s.staffName}</span>
                     </div>
                   </td>
                 )}
@@ -768,8 +819,11 @@ function SubmissionTable({
                     {s.companyName || s.company || "—"}
                   </span>
                 </td>
+
+                {/* ── STATUS CELL ── */}
                 <td className="px-2 py-4">
                   <div className="flex flex-col gap-1 items-start">
+                    {/* Primary status badge */}
                     <span
                       className={cn(
                         "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border",
@@ -790,20 +844,18 @@ function SubmissionTable({
                       />
                       {s.status}
                     </span>
-                    {/* {s.status === "rejected" && (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border bg-violet-50 text-violet-700 border-violet-100">
-                        <div className="w-1.5 h-1.5 rounded-full bg-violet-500 shadow-[0_0_8px_rgba(139,92,246,0.5)]" />
-                        rework
-                      </span>
-                    )} */}
-                    {s.status === "rejected" && role === "staff" && (
+
+                    {/* Rework button shown below rejected — for ALL roles */}
+                    {s.status === "rejected" && (
                       <button
-                        onClick={() => onResubmitInitiate(s)}
-                        className="px-3 py-1 bg-violet-50 text-violet-600 rounded-full hover:bg-violet-100 transition-all border border-violet-100 text-[10px] font-black uppercase tracking-widest"
+                        onClick={() => onRejectInitiate(s.id)}
+                        className="px-3 py-1 bg-violet-600 text-violet-50 rounded-full text-[10px] font-black uppercase tracking-widest"
                       >
                         Rework
                       </button>
                     )}
+
+                    {/* Staff: resubmit button for rework status */}
                     {s.status === "rework" && role === "staff" && (
                       <button
                         onClick={() => onResubmitInitiate(s)}
@@ -814,6 +866,7 @@ function SubmissionTable({
                     )}
                   </div>
                 </td>
+
                 <td className="px-4 py-4 text-right">
                   <div className="flex justify-end gap-2 items-center">
                     {role === "admin" &&
@@ -844,18 +897,33 @@ function SubmissionTable({
                           </a>
                         )}
                       </>
+                    ) : role === "admin" && s.status === "approved" ? (
+                      <div className="flex justify-end gap-2 items-center">
+                        {s.link && (
+                          <a href={s.link} target="_blank" rel="noreferrer" className="p-1.5 text-slate-400 hover:text-primary transition-colors">
+                            <ExternalLink size={16} />
+                          </a>
+                        )}
+                        <button
+                          onClick={() => onPostSocial?.(s)}
+                          className={cn(
+                            "p-1.5 rounded-lg transition-all border text-[10px] font-black",
+                            s.postedToSocial
+                              ? "bg-emerald-50 text-emerald-600 border-emerald-100 cursor-default"
+                              : "bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-100"
+                          )}
+                          title={s.postedToSocial ? "Already posted" : "Post to Social Media"}
+                          disabled={s.postedToSocial}
+                        >
+                          <Share2 size={16} />
+                        </button>
+                      </div>
                     ) : role === "admin" && s.status === "rejected" ? (
                       <div className="flex justify-end gap-2 items-center">
-                        <button
-                          onClick={() => onRejectInitiate(s.id)}
-                          className="px-2 py-1.5 bg-violet-50 text-violet-600 rounded-lg hover:bg-violet-100 transition-all border border-violet-100 text-[10px] font-black uppercase tracking-widest"
-                          title="Request Rework"
-                        >
-                          Rework
-                        </button>
+                        
                         <button
                           onClick={() => setCommentPopup(s)}
-                          className=" text-rose-400 hover:text-rose-600 transition-colors"
+                          className="text-rose-400 hover:text-rose-600 transition-colors"
                           title="View rejection reason"
                         >
                           <MessageSquare size={16} />
@@ -874,8 +942,7 @@ function SubmissionTable({
                     ) : (
                       <div className="flex flex-col items-end gap-1">
                         <div className="flex justify-end gap-2 items-center">
-                          {(s.status === "rejected" ||
-                            s.status === "rework") && (
+                          {(s.status === "rejected" || s.status === "rework") && (
                             <button
                               onClick={() => setCommentPopup(s)}
                               className={cn(

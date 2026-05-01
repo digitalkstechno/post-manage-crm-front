@@ -12,6 +12,7 @@ export default function SubmissionsPage() {
     updateStatus,
     searchQuery,
     resubmit,
+    postToSocial,
   } = useApp();
 
   return (
@@ -24,6 +25,7 @@ export default function SubmissionsPage() {
         addSubmission={addSubmission}
         updateStatus={updateStatus}
         resubmit={resubmit}
+        postToSocial={postToSocial}
       />
     </DashboardLayoutWrapper>
   );

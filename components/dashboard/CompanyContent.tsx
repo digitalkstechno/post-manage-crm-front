@@ -30,7 +30,7 @@ export default function CompanyContent({ searchQuery = "" }: { searchQuery?: str
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-extrabold text-slate-800 tracking-tight">Companies</h2>
+          
           <p className="text-slate-400 text-sm mt-1">{companies.length} companies registered</p>
         </div>
         <button

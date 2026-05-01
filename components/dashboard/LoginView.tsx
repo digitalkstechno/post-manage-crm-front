@@ -55,7 +55,7 @@ export default function LoginView({ onLogin }: LoginViewProps) {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
               <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
-                Staff Identity
+                Email
               </label>
               <div className="relative">
                 <Mail
@@ -75,14 +75,9 @@ export default function LoginView({ onLogin }: LoginViewProps) {
             <div className="space-y-2">
               <div className="flex justify-between">
                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
-                  Security Key
+                  Password
                 </label>
-                <button
-                  type="button"
-                  className="text-[10px] font-black text-primary hover:underline uppercase tracking-widest"
-                >
-                  Recovery?
-                </button>
+               
               </div>
               <div className="relative">
                 <Lock
@@ -99,41 +94,7 @@ export default function LoginView({ onLogin }: LoginViewProps) {
               </div>
             </div>
 
-            {/* <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
-                Portal Access Level
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setSelectedRole("staff")}
-                  className={`flex flex-col items-center gap-2 p-4 rounded-2xl border transition-all ${
-                    selectedRole === "staff"
-                      ? "border-primary bg-primary/5 text-primary shadow-sm"
-                      : "border-slate-100 bg-white/30 text-slate-400 hover:border-slate-200"
-                  }`}
-                >
-                  <UserIcon size={20} />
-                  <span className="text-[10px] font-black uppercase tracking-widest">
-                    Employee
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectedRole("admin")}
-                  className={`flex flex-col items-center gap-2 p-4 rounded-2xl border transition-all ${
-                    selectedRole === "admin"
-                      ? "border-primary bg-primary/5 text-primary shadow-sm"
-                      : "border-slate-100 bg-white/30 text-slate-400 hover:border-slate-200"
-                  }`}
-                >
-                  <ShieldCheck size={20} />
-                  <span className="text-[10px] font-black uppercase tracking-widest">
-                    Executive
-                  </span>
-                </button>
-              </div>
-            </div> */}
+          
 
             <button
               type="submit"
@@ -144,7 +105,7 @@ export default function LoginView({ onLogin }: LoginViewProps) {
                 <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
               ) : (
                 <>
-                  <span>Initialize Portal Session</span>
+                  <span>Login</span>
                   <ChevronRight size={18} />
                 </>
               )}
@@ -152,24 +113,8 @@ export default function LoginView({ onLogin }: LoginViewProps) {
           </form>
         </div>
 
-        <p className="mt-8 text-center text-slate-400 text-sm">
-          Need assistance?{" "}
-          <button className="text-primary font-bold hover:underline">
-            Contact System Admin
-          </button>
-        </p>
-
-        <div className="mt-12 flex justify-center gap-6 opacity-40">
-          <button className="text-[10px] font-bold uppercase tracking-widest hover:opacity-100 transition-opacity">
-            Privacy
-          </button>
-          <button className="text-[10px] font-bold uppercase tracking-widest hover:opacity-100 transition-opacity">
-            Terms
-          </button>
-          <button className="text-[10px] font-bold uppercase tracking-widest hover:opacity-100 transition-opacity">
-            Contact
-          </button>
-        </div>
+        
+        
       </motion.div>
     </div>
   );

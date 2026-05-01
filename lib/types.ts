@@ -21,7 +21,6 @@ export interface Submission {
   createdAt: string;
   adminComment?: string;
   postedToSocial?: boolean;
-  socialPostedAt?: string;
 }
 
 export interface User {

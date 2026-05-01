@@ -26,7 +26,7 @@ export default function DashboardLayout({
 
   const getPageTitle = () => {
     if (pathname === '/') return 'Administrative Overview';
-    if (pathname === '/submissions') return 'Documentation Queue';
+    if (pathname === '/submissions') return 'Post Management';
     if (pathname === '/upload') return 'Create Submission';
     if (pathname === '/directory') return 'Staff Directory';
     if (pathname === '/companies') return 'Companies';

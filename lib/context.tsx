@@ -8,6 +8,7 @@ import React, {
   ReactNode,
 } from "react";
 import { Role, User, Submission, SubmissionStatus, Company } from "@/lib/types";
+import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001/api";
@@ -28,6 +29,7 @@ interface AppContextType {
   addCompany: (name: string) => Promise<void>;
   deleteCompany: (id: string) => Promise<void>;
   resubmit: (id: string, fileLink: string) => Promise<void>;
+  postToSocial: (id: string) => Promise<void>;
   updateStatus: (id: string, status: SubmissionStatus, comment?: string) => void;
 }
 
@@ -151,11 +153,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         await fetchCompanies(result.token);
         router.push("/submissions");
       } else {
-        alert("Login failed: " + result.message);
+        toast.error(result.message || "Invalid email or password");
       }
     } catch (err) {
       console.error("Login error:", err);
-      alert("Cannot connect to server. Please make sure the backend is running.");
+      toast.error("Cannot connect to server. Please make sure the backend is running.");
     }
   };
 
@@ -246,6 +248,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const postToSocial = async (id: string) => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API}/submissions/${id}/post-social`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const result = await res.json();
+      if (result.success) {
+        setSubmissions((prev) =>
+          prev.map((s) => s.id === id ? { ...s, postedToSocial: true } : s)
+        );
+      } else {
+        toast.error(result.message || "Failed to post");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Something went wrong!");
+    }
+  };
+
   const addCompany = async (name: string) => {
     const token = localStorage.getItem("token");
     const res = await fetch(`${API}/companies/create`, {
@@ -286,7 +309,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       value={{
         role, user, submissions, staffList, companies,
         login, logout, addSubmission, addStaff, addCompany, deleteCompany,
-        resubmit, updateStatus, searchQuery, setSearchQuery, authReady,
+        resubmit, postToSocial, updateStatus, searchQuery, setSearchQuery, authReady,
       }}
     >
       {children}

@@ -61,9 +61,7 @@ export default function Sidebar({ currentRole, onLogout }: SidebarProps) {
           <h1 className="font-extrabold text-lg text-slate-800 tracking-tight leading-none uppercase">
             SMM
           </h1>
-          <p className="text-[9px] text-slate-400 font-black uppercase tracking-[0.2em] mt-1">
-            Enterprise AI
-          </p>
+        
         </div>
       </div>
 
@@ -105,7 +103,7 @@ export default function Sidebar({ currentRole, onLogout }: SidebarProps) {
             className="w-full flex items-center gap-3 px-3 py-2 text-slate-400 hover:text-rose-600 transition-colors text-xs font-bold uppercase tracking-widest"
           >
             <LogOut size={16} />
-            <span>Sign Out</span>
+            <span>Log Out</span>
           </button>
         </div>
       </div>
